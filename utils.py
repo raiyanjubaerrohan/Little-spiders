@@ -16,6 +16,7 @@ T_IDEN      = "IDEN"
 T_LITERAL   = "LITERAL"
 T_KEY       = "KEY"
 T_QUS       = "QUS"
+T_EOS       = "EOS"
 T_COLON     = "COLON"
 T_SQUTE     = "SQUTE"
 T_DQUTE     = "DQUTE"
@@ -43,5 +44,8 @@ keywords = [
     "func",
     "end"
 ]
+
+
+variables_ptr = dict()
 
 

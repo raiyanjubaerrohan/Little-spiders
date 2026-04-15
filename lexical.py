@@ -1,10 +1,12 @@
 from utils import *
 
 class Token:
+
     def __init__(self, ty, val = 0, typ = 0):
         self.type = ty
         self.value = val
         self.typer = typ
+        
 
     def __repr__(self):
         if self.type == T_LITERAL:
@@ -14,6 +16,14 @@ class Token:
             return f"{self.value}=>{self.type}"
 
         return f"{self.type}"
+
+
+    def __eq__(self, other):
+        return self.type == other
+
+
+    def __ne__(self, other):
+        return self.type != other
 
         
 
@@ -127,6 +137,11 @@ class Lexer:
                 tokens.append(Token(T_SQUTE))
                 self.next_chr()
 
+
+            elif self.cur == ";":
+                tokens.append(Token(T_EOS))
+                self.next_chr()
+
             else: 
                 return None, Exception(
                     f"invalid token '{self.cur}''"
@@ -167,10 +182,10 @@ class Lexer:
             self.next_chr()
 
         if eqs == '=':
-            return Token(T_EQ)
+            return Token(T_EQ), None
 
         elif eqs == '=>':
-            return Token(T_ARROW)
+            return Token(T_ARROW), None
 
         else:
             return None, Exception(
