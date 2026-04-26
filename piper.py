@@ -1,6 +1,8 @@
 from lexical import *
 from parserize import *
 from llvmlite import ir
+from symanticizer import *
+from utils import variables_ptr
 
 module = ir.Module(name="main")
 module.triple = "aarch64-unknown-linux-android24"
@@ -20,7 +22,7 @@ printffn = ir.Function(
 )
 
 #adding a string to show answer
-thestr = "ans: %d \n\0"
+thestr = "ans: %f \n\0"
 arr = ir.ArrayType(
     ir.IntType(8),
     len(thestr)
@@ -56,12 +58,24 @@ def build(text:str):
     if err: return None, err
 
     parser = Parser(res)
-    node = parser.parse()
+    typeless_node = parser.parse()
 
-    ans = node.codegen(builder)
+    symanter = Symantics(typeless_node)
+    exp_type, typed_node = symanter.simanticize(typeless_node)
+
+    print(typed_node)
+    ans_false = typed_node.codegen(builder)
+
+    if not ans_false:
+        return None, "there is a problem while parsing"
+
+    ans_false = variables_ptr[typed_node.value]
+
+    ans = builder.load(ans_false)
+    
     commiter(ans)
     
-    return node
+    return typed_node
 
 
 #printf call builder and return
@@ -78,4 +92,4 @@ def commiter(ans):
 
     
     
-
+build("let a = 20.5 + 5 * 2.3;")

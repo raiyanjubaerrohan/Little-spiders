@@ -1,5 +1,6 @@
-from utils import *
 
+from utils import *
+from llvmlite.ir import IntType, DoubleType, Constant
 
 #base class
 class Node:
@@ -40,6 +41,14 @@ class NegNode(Node):
         return f"Neg({self.value})"
 
 
+    def to_dict(self):
+        return {
+            "node_type": "NegitiveNode",
+            "value": self.value.to_dict(),
+            "llvm_type": self.llvm_type
+        }
+
+
 class PosNode(Node):
     def __init__(self, value):
         self.value = value #the actual value, node
@@ -47,6 +56,17 @@ class PosNode(Node):
 
     def codegen(self, builder):
         return self.value
+
+
+    def to_dict(self):
+        return {
+            "node_type": "PositiveNode",
+            "value": self.value.to_dict(),
+            "llvm_type": self.llvm_type
+        }
+
+    def __repr__(self):
+        return f"PosNode({self.value})"
 
 
 class ConstantNode(Node):
@@ -59,7 +79,15 @@ class ConstantNode(Node):
 
 
     def codegen(self, builder):
-        return self.llvm_type(self.value)
+        return Constant(self.llvm_type, self.value)
+
+
+    def to_dict(self):
+        return {
+            "node_type":"Constant",
+            "value": self.value,
+            "llvm_type": f"{self.llvm_type}"
+        }
 
 
 class BinOpNode(Node):
@@ -78,20 +106,57 @@ class BinOpNode(Node):
         rs = self.rhs.codegen(builder)
 
         if self.value == T_ADD:
-            return builder.add(ls, rs)
+            if isinstance(
+                self.llvm_type,
+                IntType
+            ):
+                return builder.add(ls, rs)
+
+            else:
+                return builder.fadd(ls, rs)
 
         elif self.value == T_SUB:
-            return builder.sub(ls, rs)
+            if isinstance(
+                self.llvm_type,
+                IntType
+            ):
+                return builder.sub(ls, rs)
+
+            else:
+                return builder.fsub(ls, rs)
 
         elif self.value == T_MUL:
-            return builder.mul(ls, rs)
+            if isinstance(
+                self.llvm_type,
+                IntType
+            ):
+                return builder.mul(ls, rs)
+
+            else:
+                return builder.fmul(ls, rs)
 
         elif self.value == T_DIV:
-            return builder.sdiv(ls, rs)
+            if isinstance(
+                self.llvm_type,
+                IntType
+            ):
+                return builder.sdiv(ls, rs)
+
+            else:
+                return builder.fdiv(ls, rs)
 
         else:
             raise Exception("not a valid operation")
 
+    def to_dict(self):
+        return {
+            "node_type": "BinOperationNode",
+            "value": self.value,
+            "left": self.lhs.to_dict(),
+            "right": self.rhs.to_dict(),
+            "llvm_type": f"{self.llvm_type}"
+        }
+    
 
 class CastFloToInt(Node):
     def __init__(self, value):
@@ -101,7 +166,13 @@ class CastFloToInt(Node):
 
     def codegen(self, builder):
         return builder.fptosi(self.value.codegen(builder))
-        
+
+    def to_dict(self):
+        return {
+            "node_type": "CastFloatToInteger",
+            "value": self.value.to_dict(),
+            "llvm_type": f"{self.llvm_type}"
+        }
 
     def __repr__(self):
 
@@ -114,8 +185,17 @@ class CastIntToFlo(Node):
         self.llvm_type = "float"
 
     def codegen(self, builder):
-        return builder.sitofp(self.value.codgen(builder))
+        return builder.sitofp(
+            self.value.codegen(builder),
+            DoubleType()
+        )
 
+    def to_dict(self):
+        return {
+            "node_type": "CastIntigerToFloat",
+            "value": self.value.to_dict(),
+            "llvm_type": f"{self.llvm_type}"
+        }
 
     def __repr__(self):
         return f"CastIntToFlo({self.value})"
@@ -156,18 +236,25 @@ class VarDeclareNode(Node):
             name=self.value
         )
 
-        ptr.align = self.llvm_type.width // 8
         variables_ptr[self.value] = ptr
 
         varAssNode = VarAssignNode(ptr, self.expr)
 
         varAssNode.codegen(builder)
         
-        return None
+        return True
 
 
     def __repr__(self):
         return f"let {self.value}:{self.llvm_type} = {self.expr}"
+
+    def to_dict(self):
+        return {
+            "node_type": "VariableDeclareNode",
+            "value": self.value,
+            "expr": self.expr.to_dict(),
+            "llvm_type": self.llvm_type
+        }
 
 
 class VarFetchNode(Node):
