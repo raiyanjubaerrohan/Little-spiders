@@ -30,7 +30,9 @@ class Parser:
 
     def expr(self):
     
-        left = self.term()
+        left, err = self.term()
+
+        if err: return None, err
 
         while (self.cur_tok != T_EOS
         and self.cur_tok.type in (
@@ -40,22 +42,26 @@ class Parser:
 
             if self.cur_tok == T_RPAN1:
                 self.next_tok()
-                return left
+                return left, None
 
             
             center = self.cur_tok.type
             self.next_tok()
 
-            right = self.term()
+            right, err = self.term()
+
+            if err: return None, err
 
             left = BinOpNode(center, left, right)
             
-        return left
+        return left, None
 
 
     def term(self):
 
-        left = self.factor()
+        left, err = self.factor()
+
+        if err: return None, err
 
         while (self.cur_tok != T_EOS
         and self.cur_tok.type in(
@@ -64,60 +70,64 @@ class Parser:
 
         
             if self.cur_tok == T_RPAN1:
-                return left
+                return left, None
 
             
             center = self.cur_tok.type
             self.next_tok()
 
-            right = self.factor()
+            right, err = self.factor()
+
+            if err: return None, err
 
             left = BinOpNode(center, left, right)
             
-        return left
+        return left, None
 
 
     def factor(self):
         t = self.cur_tok
 
         if t == T_EOS or (not isinstance(t, Token)):
-            raise Exception("expected more tokens")
+            return None,Exception("expected more tokens")
 
         if t.type in (T_ADD, T_SUB):
             self.next_tok()
             res = self.factor()
 
             if t == T_SUB:
-                return NegNode(res)
+                return NegNode(res),None
 
             else:
-                return PosNode(res)
+                return PosNode(res), None
                 
 
         elif t == T_LPAN1:
             self.next_tok()
-            return self.expr()
+            return self.expr(), None
 
         elif (t == T_LITERAL
         and t.typer in ("intiger","float")):
         
             self.next_tok()
-            const = ConstantNode(t.value, t.typer)
-            return const
+            return ConstantNode(t.value, t.typer), None
+
+
+        return None, Exception(f"invalid token {t}")
 
 
 
-    def expect(self, v: tuple, /, isType = True):
+    def expect(self, *v, isType = True):
 
         if isType:
             if not self.cur_tok.type in  v:
-                raise Exception(
+                return Exception(
                     f"error, expected {v}"
                 )
 
         else:
             if not self.cur_tok.value in v:
-                raise Exception(
+                return Exception(
                     f"error, expected {v} as value"
                 )
 
@@ -131,7 +141,8 @@ class Parser:
 
             self.next_tok()
 
-            self.expect((T_IDEN))
+            if err := self.expect(T_IDEN):
+                return None, err
             
             var_name = self.cur_tok.value
             var_type = 0
@@ -142,10 +153,8 @@ class Parser:
             if self.cur_tok == T_COLON:
                 self.next_tok()
 
-                self.expect(
-                    ("int","float"),
-                    isType=False
-                )
+                if err := self.expect("int","float",isType=False):
+                    return None, err
 
                 var_type = self.cur_tok.value
                 self.next_tok()
@@ -153,32 +162,31 @@ class Parser:
             if self.cur_tok == T_EQ:
                 self.next_tok()
 
-                var_expr = self.expr()
+                var_expr, err = self.expr()
+
+                if err: return None, err
 
             
             if (not var_expr) and (not var_type):
-                raise Exception(f"excepted a type or an default value, {var_name}")
+                return None, Exception(f"excepted a type or an default value, {var_name}")
 
             varDecNode = VarDeclareNode(var_name)
 
+
             if var_expr:
                 varDecNode.expr = var_expr
+            else:
+                varDecNode.expr = ConstantNode(0, "intiger")
+
 
             if var_type:
                 varDecNode.llvm_type = var_type
 
-            return varDecNode
+            return varDecNode, None
                 
-        return False
+        return None, None
 
-        
-
-            
-                
-
-            
-            
-
-
-
+    #end function
     
+#end class
+        

@@ -54,28 +54,25 @@ def build(text:str):
     global builder
     
     lexer = Lexer(text)
-    res, err = lexer.lex()
+    result, err = lexer.lex()
     if err: return None, err
 
-    parser = Parser(res)
-    typeless_node = parser.parse()
+    parser = Parser(result)
+    typeless_node, err = parser.parse()
+
+    if err: return None, err
 
     symanter = Symantics(typeless_node)
     exp_type, typed_node = symanter.simanticize(typeless_node)
 
     print(typed_node)
+    
     ans_false = typed_node.codegen(builder)
 
     if not ans_false:
         return None, "there is a problem while parsing"
 
-    ans_false = variables_ptr[typed_node.value]
-
-    ans = builder.load(ans_false)
-    
-    commiter(ans)
-    
-    return typed_node
+    return typed_node, None
 
 
 #printf call builder and return
@@ -92,4 +89,4 @@ def commiter(ans):
 
     
     
-build("let a = 20.5 + 5 * 2.3;")
+

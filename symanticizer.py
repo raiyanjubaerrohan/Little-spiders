@@ -18,9 +18,11 @@ class Symantics:
 
             if exp_type and expression:
             
-                if exp_type == "int":
+                if exp_type in ("int", "intiger"):
+                #equals to exp_type == "int" or exp_type == "intiger"
                     varDec.llvm_type = IntType(32)
                     expression.llvm_type = IntType(32)
+                    
                 elif exp_type == "float":
                     varDec.llvm_type = DoubleType()
                     expression.llvm_type = DoubleType()
