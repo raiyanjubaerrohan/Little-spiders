@@ -28,11 +28,6 @@ class Token:
         
 
 class Lexer:
-    def __init__(self, text:str):
-        self.text:str = text
-        self.pos:int = 0
-        self.cur:chr = text[0]
-        self.tokens = None
 
     def next_chr(self):
         self.pos += 1
@@ -44,10 +39,12 @@ class Lexer:
 
         #end
 
-    def lex(self):
+    def lex(self, text: str):
+    
+        self.text:str = text
+        self.pos:int = 0
+        self.cur:chr = text[0]
         tokens: list[Token] = []
-
-        if self.tokens: return self.tokens, None
 
         while self.cur != None:
 
@@ -147,7 +144,6 @@ class Lexer:
                     f"invalid token '{self.cur}''"
                 )
 
-        self.tokens = tokens
 
         return tokens, None
         #end

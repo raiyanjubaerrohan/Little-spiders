@@ -2,7 +2,7 @@ from nodes import *
 from llvmlite.ir import DoubleType, IntType
 
 class Symantics:
-    def __init__(self, ast):
+    def load(self, ast):
         self.cur_node = ast
 
 

@@ -1,20 +1,20 @@
-
 from nodes import *
 from utils import T_EOS, variables_ptr
-from llvmlite.ir import IntType
-from llvmlite.ir import HalfType, FloatType, DoubleType
-from llvmlite.ir import PointerType, VoidType
 from lexical import Token
 from utils import T_IDEN
 
-        
 
 class Parser:
-    def __init__(self, tokens:list[Token]):
-        self.tokens = tokens
-        self.cur_tok = tokens[0]
+
+    def __init__(self):
+        self.tokens:list[Token] = []
+        self.cur_tok = None
         self.cur_pos = 0
-        self.cur_node = 0
+
+
+    def consume(self, tokens:list[Token]):
+        for tok in tokens:
+            self.tokens.append(tok)
 
 
     def next_tok(self):
@@ -29,7 +29,7 @@ class Parser:
 
 
     def expr(self):
-    
+
         left, err = self.term()
 
         if err: return None, err
@@ -44,7 +44,7 @@ class Parser:
                 self.next_tok()
                 return left, None
 
-            
+
             center = self.cur_tok.type
             self.next_tok()
 
@@ -53,7 +53,7 @@ class Parser:
             if err: return None, err
 
             left = BinOpNode(center, left, right)
-            
+
         return left, None
 
 
@@ -68,11 +68,11 @@ class Parser:
             T_MUL, T_DIV, T_RPAN1
         )):
 
-        
+
             if self.cur_tok == T_RPAN1:
                 return left, None
 
-            
+
             center = self.cur_tok.type
             self.next_tok()
 
@@ -81,7 +81,7 @@ class Parser:
             if err: return None, err
 
             left = BinOpNode(center, left, right)
-            
+
         return left, None
 
 
@@ -89,7 +89,7 @@ class Parser:
         t = self.cur_tok
 
         if t == T_EOS or (not isinstance(t, Token)):
-            return None,Exception("expected more tokens")
+            return "needed", Exception("expected more tokens")
 
         if t.type in (T_ADD, T_SUB):
             self.next_tok()
@@ -100,7 +100,7 @@ class Parser:
 
             else:
                 return PosNode(res), None
-                
+
 
         elif t == T_LPAN1:
             self.next_tok()
@@ -108,7 +108,7 @@ class Parser:
 
         elif (t == T_LITERAL
         and t.typer in ("intiger","float")):
-        
+
             self.next_tok()
             return ConstantNode(t.value, t.typer), None
 
@@ -122,36 +122,54 @@ class Parser:
         if isType:
             if not self.cur_tok.type in  v:
                 return Exception(
-                    f"error, expected {v}"
+                    f"expected {v}"
                 )
 
         else:
             if not self.cur_tok.value in v:
                 return Exception(
-                    f"error, expected {v} as value"
+                    f"expected {v} as value"
                 )
 
         return None
 
-            
+
 
     def parse(self):
 
-        if self.cur_tok.value == "let":
+
+        self.cur_pos = -1
+        #one step before the original
+        #because it will currect itself
+        self.next_tok()
+        
+        if self.cur_tok == None:
+            return "needed", None
+
+        elif self.cur_tok == T_EOF:
+            return "theend", None #end point
+
+        elif self.cur_tok.value == "let":
 
             self.next_tok()
 
+            if self.cur_tok == None and self.cur_tok != T_EOS:
+                return "needed", None
+
             if err := self.expect(T_IDEN):
                 return None, err
-            
+
             var_name = self.cur_tok.value
             var_type = 0
             var_expr = 0
-            
+
             self.next_tok()
 
             if self.cur_tok == T_COLON:
                 self.next_tok()
+
+                if self.cur_tok == None and self.cur_tok != T_EOS:
+                    return "needed", None
 
                 if err := self.expect("int","float",isType=False):
                     return None, err
@@ -166,7 +184,15 @@ class Parser:
 
                 if err: return None, err
 
-            
+            if self.cur_tok == None and self.cur_tok != T_EOS:
+                return "needed", None
+
+            if err := self.expect(T_EOS):
+                return None, err
+
+            self.next_tok() #consume EOS
+
+
             if (not var_expr) and (not var_type):
                 return None, Exception(f"excepted a type or an default value, {var_name}")
 
@@ -182,11 +208,16 @@ class Parser:
             if var_type:
                 varDecNode.llvm_type = var_type
 
+
+            #cutting the privious successful node
+            self.tokens = self.tokens[self.cur_pos:]
+            #from current index to the end
+            
             return varDecNode, None
-                
-        return None, None
+
+        return "needed", None
 
     #end function
-    
+
 #end class
-        
+
