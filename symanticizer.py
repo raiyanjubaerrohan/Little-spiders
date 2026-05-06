@@ -66,6 +66,7 @@ class Symantics:
 
 
         elif isinstance(self.cur_node, ConstantNode):
+        
             if not exp_type:
                 return self.cur_node.llvm_type, self.cur_node
 
@@ -80,7 +81,9 @@ class Symantics:
                     raise Exception(
                         f"can not convert type {self.cur_node}"
                     )
-                    
+
+                self.cur_node.llvm_type = IntType(32)
+                
                 return "int",self.cur_node
 
             elif exp_type == "float": 

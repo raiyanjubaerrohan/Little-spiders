@@ -7,13 +7,20 @@ import argparse
 from llvmlite import ir
 
 
+#parsing the arguments
 argParser = argparse.ArgumentParser(prog="spiders")
 argParser.add_argument(
     "file",
     nargs="?",
     help="Source file"
 )
+argParser.add_argument(
+    "--display-llvm",
+    action="store_true",
+    help="displays the llvm ir on the console"
+)
 args = argParser.parse_args()
+#complete set
 
 
 lexer = Lexer()
@@ -86,9 +93,12 @@ while not theEnd:
 
 f.close()
 
-builder.ret(ir.Constant(ir.IntType(32),0))
 #manual thing for testing
 #will be automated soon...
+builder.ret(ir.Constant(ir.IntType(32),0))
+
+if args.display_llvm:
+    print(module)
 
 outputFile = open("tester.ll", "w")
 outputFile.write(str(module))

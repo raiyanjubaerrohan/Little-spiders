@@ -1,4 +1,3 @@
-
 from utils import *
 from llvmlite.ir import IntType, DoubleType, Constant
 
@@ -165,7 +164,11 @@ class CastFloToInt(Node):
 
 
     def codegen(self, builder):
-        return builder.fptosi(self.value.codegen(builder))
+        return builder.fptosi(
+            self.value.codegen(builder),
+            IntType(32)
+        )
+    
 
     def to_dict(self):
         return {
