@@ -1,5 +1,5 @@
 from utils import *
-from llvmlite.ir import IntType, DoubleType, Constant
+from llvmlite.ir import IntType, FloatType, Constant
 
 #base class
 class Node:
@@ -190,7 +190,7 @@ class CastIntToFlo(Node):
     def codegen(self, builder):
         return builder.sitofp(
             self.value.codegen(builder),
-            DoubleType()
+            FloatType()
         )
 
     def to_dict(self):

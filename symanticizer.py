@@ -1,5 +1,5 @@
 from nodes import *
-from llvmlite.ir import DoubleType, IntType
+from llvmlite.ir import FloatType, IntType
 
 class Symantics:
     def load(self, ast):
@@ -24,8 +24,8 @@ class Symantics:
                     expression.llvm_type = IntType(32)
                     
                 elif exp_type == "float":
-                    varDec.llvm_type = DoubleType()
-                    expression.llvm_type = DoubleType()
+                    varDec.llvm_type = FloatType()
+                    expression.llvm_type = FloatType()
 
                 varDec.expr = expression
 
@@ -73,7 +73,7 @@ class Symantics:
             elif exp_type == "int":
             
                 if self.cur_node == "float":
-                    self.cur_node.llvm_type = DoubleType()
+                    self.cur_node.llvm_type = FloatType()
 
                     return "int", CastFloToInt(self.cur_node)
 
@@ -98,6 +98,7 @@ class Symantics:
                         f"can not convert type {self.cur_node}"
                     )
 
+                self.cur_node.llvm_type = FloatType()
                 return "float",self.cur_node
 
             #end
@@ -124,14 +125,14 @@ class Symantics:
                     lhs = CastIntToFlo(lhs)
 
                 else:
-                    lhs.llvm_type = DoubleType()
+                    lhs.llvm_type = FloatType()
 
                 if rhs == "intiger":
                     rhs.llvm_type = IntType(32)
                     rhs = CastIntToFlo(rhs)
 
                 else:
-                    rhs.llvm_type = DoubleType()
+                    rhs.llvm_type = FloatType()
 
                 return "float", lhs, rhs
 
