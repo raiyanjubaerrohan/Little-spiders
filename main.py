@@ -86,6 +86,7 @@ while not theEnd:
 
         simantics.load(tlast)
         _, tpast = simantics.simanticize()
+        print(tpast)
 
         if tpast is not None:
             tpast.codegen(builder)

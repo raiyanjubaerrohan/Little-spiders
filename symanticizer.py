@@ -2,6 +2,7 @@ from nodes import *
 from llvmlite.ir import FloatType, IntType
 
 class Symantics:
+
     def load(self, ast):
         self.cur_node = ast
 
@@ -38,6 +39,24 @@ class Symantics:
                 enter the debug mode to spot the problem.
                 (only for developer)
                 """)
+
+        elif isinstance(self.cur_node, VarAssignNode):
+            node = self.cur_node
+            exp_type = self.cur_node.llvm_type
+
+            self.cur_node = node.expr
+            exp_type, typed_ast = self.simanticize(exp_type)
+
+            if exp_type in ("int","intiger"):
+                typed_ast.llvm_type = IntType(32)
+
+            elif exp_type == "float":
+                typed_ast.llvm_type = FloatType()
+
+            return 0,VarAssignNode(
+                node.value,
+                typed_ast
+            )
         
         elif isinstance(self.cur_node, BinOpNode):
 
@@ -60,7 +79,14 @@ class Symantics:
                 ty_rhs
             )
 
-            binOp.llvm_type = exp_type
+            if exp_type == "int":
+                binOp.llvm_type = IntType(32)
+
+            elif exp_type == "float":
+                binOp.llvm_type = FloatType()
+
+            else:
+                raise Exception("something went wrong, from symanticizer")
 
             return exp_type, binOp
 

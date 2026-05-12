@@ -1,4 +1,4 @@
-
+from llvmlite.ir import *
 
 T_ADD       = "ADD"
 T_SUB       = "SUB"
@@ -48,5 +48,16 @@ keywords = [
 
 
 variables_ptr = dict()
+
+
+def getCurrectType(ty) -> str:
+    if isinstance(ty, IntType):
+        if ty.width == 32: return "int"
+
+    elif isinstance(ty, FloatType):
+        return "float"
+
+    #else
+    return ""
 
 

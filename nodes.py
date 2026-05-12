@@ -44,7 +44,7 @@ class NegNode(Node):
         return {
             "node_type": "NegitiveNode",
             "value": self.value.to_dict(),
-            "llvm_type": self.llvm_type
+            "llvm_type": str(self.llvm_type)
         }
 
 
@@ -61,7 +61,7 @@ class PosNode(Node):
         return {
             "node_type": "PositiveNode",
             "value": self.value.to_dict(),
-            "llvm_type": self.llvm_type
+            "llvm_type": str(self.llvm_type)
         }
 
     def __repr__(self):
@@ -85,7 +85,7 @@ class ConstantNode(Node):
         return {
             "node_type":"Constant",
             "value": self.value,
-            "llvm_type": f"{self.llvm_type}"
+            "llvm_type": str(self.llvm_type)
         }
 
 
@@ -146,6 +146,7 @@ class BinOpNode(Node):
 
         else:
             raise Exception("not a valid operation")
+            
 
     def to_dict(self):
         return {
@@ -153,7 +154,7 @@ class BinOpNode(Node):
             "value": self.value,
             "left": self.lhs.to_dict(),
             "right": self.rhs.to_dict(),
-            "llvm_type": f"{self.llvm_type}"
+            "llvm_type": str(self.llvm_type)
         }
     
 
@@ -174,7 +175,7 @@ class CastFloToInt(Node):
         return {
             "node_type": "CastFloatToInteger",
             "value": self.value.to_dict(),
-            "llvm_type": f"{self.llvm_type}"
+            "llvm_type": str(self.llvm_type)
         }
 
     def __repr__(self):
@@ -197,7 +198,7 @@ class CastIntToFlo(Node):
         return {
             "node_type": "CastIntigerToFloat",
             "value": self.value.to_dict(),
-            "llvm_type": f"{self.llvm_type}"
+            "llvm_type": str(self.llvm_type)
         }
 
     def __repr__(self):
@@ -209,6 +210,7 @@ class VarAssignNode(Node):
     def __init__(self, value, expr):
         self.value = value #the pointer
         self.expr = expr #the expression to be loaded
+        self.llvm_type = ""
 
 
     def __repr__(self):
@@ -240,7 +242,10 @@ class VarDeclareNode(Node):
             name=self.value
         )
 
-        variables_ptr[self.value] = ptr
+        variables_ptr[self.value] = {
+            "type": getCurrectType(self.llvm_type),
+            "value": ptr
+        }
 
         varAssNode = VarAssignNode(ptr, self.expr)
 

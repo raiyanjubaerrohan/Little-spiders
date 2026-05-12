@@ -1,7 +1,7 @@
 from nodes import *
 from utils import T_EOS, variables_ptr
 from lexical import Token
-from utils import T_IDEN
+from utils import T_IDEN, T_EQ
 
 
 class Parser:
@@ -214,6 +214,43 @@ class Parser:
             #from current index to the end
             
             return varDecNode, None
+
+
+        elif self.cur_tok == T_IDEN:
+        
+            iden_name = self.cur_tok.value
+            self.next_tok()
+
+            
+            #means this is assign node
+            if self.cur_tok == T_EQ:
+                self.next_tok()
+                express ,err = self.expr()
+
+                if express == "needed":
+                    return express, None
+
+                if err:
+                    return None, err
+
+                if err := self.expect(T_EOS):
+                    return None, err
+
+                self.next_tok() # consume EOS
+
+                if iden_name in variables_ptr:
+
+                    #cutting the last succesful node
+                    self.tokens = self.tokens[self.cur_pos:]
+                
+                    return VarAssignNode(
+                        variables_ptr[iden_name]["value"],
+                        express
+                    ), None
+
+                #else
+                return None, Exception(f"unknow identifier {iden_name}")
+                
 
         return "needed", None
 
