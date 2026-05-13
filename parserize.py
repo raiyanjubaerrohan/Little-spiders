@@ -245,7 +245,8 @@ class Parser:
                 
                     return VarAssignNode(
                         variables_ptr[iden_name]["value"],
-                        express
+                        express,
+                        variables_ptr[iden_name]["type"]
                     ), None
 
                 #else

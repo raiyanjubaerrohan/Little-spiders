@@ -55,7 +55,8 @@ class Symantics:
 
             return 0,VarAssignNode(
                 node.value,
-                typed_ast
+                typed_ast,
+                exp_type
             )
         
         elif isinstance(self.cur_node, BinOpNode):
@@ -99,6 +100,7 @@ class Symantics:
             elif exp_type == "int":
             
                 if self.cur_node == "float":
+                
                     self.cur_node.llvm_type = FloatType()
 
                     return "int", CastFloToInt(self.cur_node)
@@ -112,7 +114,8 @@ class Symantics:
                 
                 return "int",self.cur_node
 
-            elif exp_type == "float": 
+            elif exp_type == "float":
+                print(self.cur_node.llvm_type, "?float")
 
                 if self.cur_node == "intiger":
                     self.cur_node.llvm_type = IntType(32)

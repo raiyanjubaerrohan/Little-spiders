@@ -207,10 +207,10 @@ class CastIntToFlo(Node):
         
 
 class VarAssignNode(Node):
-    def __init__(self, value, expr):
+    def __init__(self, value, expr, type_):
         self.value = value #the pointer
         self.expr = expr #the expression to be loaded
-        self.llvm_type = ""
+        self.llvm_type = type_ #the llvm type
 
 
     def __repr__(self):
@@ -247,7 +247,7 @@ class VarDeclareNode(Node):
             "value": ptr
         }
 
-        varAssNode = VarAssignNode(ptr, self.expr)
+        varAssNode = VarAssignNode(ptr, self.expr, "")
 
         varAssNode.codegen(builder)
         

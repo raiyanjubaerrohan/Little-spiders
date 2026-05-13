@@ -45,7 +45,7 @@ builder = ir.IRBuilder(
 )
 
 if not args.file:
-    print("error: no file input: main=>41")
+    print("error: no file input")
     exit(0)
 
 err_msg = "compile time error : {0}"
