@@ -92,7 +92,8 @@ class Symantics:
             return exp_type, binOp
 
 
-        elif isinstance(self.cur_node, ConstantNode):
+        elif (isinstance(self.cur_node, ConstantNode)
+        or isinstance(self.cur_node, VarFetchNode)) :
         
             if not exp_type:
                 return self.cur_node.llvm_type, self.cur_node
@@ -115,7 +116,6 @@ class Symantics:
                 return "int",self.cur_node
 
             elif exp_type == "float":
-                print(self.cur_node.llvm_type, "?float")
 
                 if self.cur_node == "intiger":
                     self.cur_node.llvm_type = IntType(32)
@@ -131,6 +131,7 @@ class Symantics:
                 return "float",self.cur_node
 
             #end
+
 
         #end
 

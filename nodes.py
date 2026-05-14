@@ -267,8 +267,9 @@ class VarDeclareNode(Node):
 
 
 class VarFetchNode(Node):
-    def __init__(self, value):
+    def __init__(self, value, type_):
         self.value = value #the pointer
+        self.llvm_type = type_
 
 
     def __repr__(self):

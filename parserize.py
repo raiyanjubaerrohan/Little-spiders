@@ -112,6 +112,25 @@ class Parser:
             self.next_tok()
             return ConstantNode(t.value, t.typer), None
 
+        elif t == T_IDEN:
+        
+            iden = t.value
+            self.next_tok()
+
+            if self.cur_tok == T_LPAN1:
+                pass #this is a call
+
+            #else
+            if iden in variables_ptr:
+            
+                return VarFetchNode(
+                    variables_ptr[iden]["value"],
+                    variables_ptr[iden]["type"]
+                ), None
+                
+            else:
+                return None, Exception(f"unknown variable {iden}")
+
 
         return None, Exception(f"invalid token {t}")
 
