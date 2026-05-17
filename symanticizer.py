@@ -23,6 +23,10 @@ class Symantics:
                 #equals to exp_type == "int" or exp_type == "intiger"
                     varDec.llvm_type = IntType(32)
                     expression.llvm_type = IntType(32)
+
+                elif exp_type == "char":
+                    varDec.llvm_type = IntType(8)
+                    expression.llvm_type = IntType(8)
                     
                 elif exp_type == "float":
                     varDec.llvm_type = FloatType()
@@ -49,6 +53,9 @@ class Symantics:
 
             if exp_type in ("int","intiger"):
                 typed_ast.llvm_type = IntType(32)
+
+            elif exp_type == "char":
+                typed_ast.llvm_type = IntType(8)
 
             elif exp_type == "float":
                 typed_ast.llvm_type = FloatType()
@@ -83,6 +90,9 @@ class Symantics:
             if exp_type == "int":
                 binOp.llvm_type = IntType(32)
 
+            elif exp_type == "char":
+                binOp.llvm_type = IntType(8)
+
             elif exp_type == "float":
                 binOp.llvm_type = FloatType()
 
@@ -92,8 +102,7 @@ class Symantics:
             return exp_type, binOp
 
 
-        elif (isinstance(self.cur_node, ConstantNode)
-        or isinstance(self.cur_node, VarFetchNode)) :
+        elif isinstance(self.cur_node, (ConstantNode, VarFetchNode)) :
         
             if not exp_type:
                 return self.cur_node.llvm_type, self.cur_node
@@ -103,8 +112,10 @@ class Symantics:
                 if self.cur_node == "float":
                 
                     self.cur_node.llvm_type = FloatType()
-
-                    return "int", CastFloToInt(self.cur_node)
+                    return "int", CastFloToInt(
+                        self.cur_node,
+                        IntType(32)
+                    )
 
                 elif self.cur_node != "intiger":
                     raise Exception(
@@ -115,12 +126,45 @@ class Symantics:
                 
                 return "int",self.cur_node
 
+
+            elif exp_type == "char":
+
+                if self.cur_node == "float":
+                    self.cur_node.llvm_type = FloatType()
+                    return "char", CastFloToInt(
+                        self.cur_node,
+                        IntType(8)
+                    )
+
+                elif self.cur_node == "intiger":
+                    self.cur_node.llvm_type = IntType(32)
+                    return "char", CastIntLow(
+                        self.cur_node,
+                        IntType(8)
+                    )
+
+                self.cur_node.llvm_type = IntType(8)
+
+                return "char", self.cur_node
+                    
+
             elif exp_type == "float":
 
                 if self.cur_node == "intiger":
                     self.cur_node.llvm_type = IntType(32)
 
-                    return "float",CastIntToFlo(self.cur_node)
+                    return "float",CastIntToFlo(
+                        self.cur_node,
+                        FloatType()
+                    )
+
+                elif self.cur_node == "char":
+                    self.cur_node.llvm_type = IntType(8)
+
+                    return "float", CastIntToFlo(
+                        self.cur_node,
+                        FloatType()
+                    )
 
                 elif self.cur_node != "float":
                     raise Exception(
@@ -132,7 +176,21 @@ class Symantics:
 
             #end
 
+        elif isinstance(self.cur_node, NegNode):
+            node = self.cur_node
+            self.cur_node = node.value
+            exp_type, node = self.simanticize(exp_type)
+            node.llvm_type = exp_type
 
+            return exp_type, NegNode(node)
+
+        elif isinstance(self.cur_node, PosNode):
+            node = self.cur_node
+            self.cur_node = node.value
+            exp_type, node = self.simanticize(exp_type)
+            node.llvm_type = exp_type
+
+            return exp_type, PosNode(node)
         #end
 
         return 0, None
@@ -152,23 +210,38 @@ class Symantics:
                 #lhs or rhs is "float"
                 if lhs == "intiger":
                     lhs.llvm_type = IntType(32)
-                    lhs = CastIntToFlo(lhs)
+                    lhs = CastIntToFlo(lhs, FloatType())
+
+                elif lhs == "char":
+                    lhs.llvm_type = IntType(8)
+                    lhs = CastIntToFlo(lhs, FloatType())
 
                 else:
                     lhs.llvm_type = FloatType()
 
                 if rhs == "intiger":
                     rhs.llvm_type = IntType(32)
-                    rhs = CastIntToFlo(rhs)
+                    rhs = CastIntToFlo(rhs, FloatType())
+
+                elif rhs == "char":
+                    rhs.llvm_type = IntType(8)
+                    rhs = CastIntToFlo(rhs, FloatType())
 
                 else:
                     rhs.llvm_type = FloatType()
 
                 return "float", lhs, rhs
 
-            #elif rhs or lhs == "intiger":
-            lhs.llvm_type = IntType(32)
-            rhs.llvm_type = IntType(32)
+            elif ("intiger" in (lhs.llvm_type, rhs.llvm_type)
+            or "int" in (lhs.llvm_type, rhs.llvm_type)):
+            
+                if lhs == "char":
+                    lhs.llvm_type = IntType(8)
+                    lhs = CastIntHigh(lhs, IntType(32))
+
+                if rhs == "char":
+                    rhs.llvm_type = IntType(8)
+                    rhs = CastIntHigh(rhs, IntType(32))
 
             return "int", lhs, rhs
 

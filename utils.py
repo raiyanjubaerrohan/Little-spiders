@@ -51,11 +51,22 @@ variables_ptr = dict()
 
 
 def getCurrectType(ty) -> str:
+
     if isinstance(ty, IntType):
+
+        if ty.width == 64: return "long"
         if ty.width == 32: return "int"
+        if ty.width == 16: return "short"
+        if ty.width == 8 : return "char"
+
+    elif isinstance(ty, HalfType):
+        return "half"
 
     elif isinstance(ty, FloatType):
         return "float"
+
+    elif isinstance(ty, DoubleType):
+        return "double"
 
     #else
     return ""

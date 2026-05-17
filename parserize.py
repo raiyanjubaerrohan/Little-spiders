@@ -93,7 +93,10 @@ class Parser:
 
         if t.type in (T_ADD, T_SUB):
             self.next_tok()
-            res = self.factor()
+            res, err = self.factor()
+
+            if err:
+                return None, err
 
             if t == T_SUB:
                 return NegNode(res),None
@@ -168,6 +171,7 @@ class Parser:
         elif self.cur_tok == T_EOF:
             return "theend", None #end point
 
+        #variable declare entry point
         elif self.cur_tok.value == "let":
 
             self.next_tok()
@@ -190,7 +194,7 @@ class Parser:
                 if self.cur_tok == None and self.cur_tok != T_EOS:
                     return "needed", None
 
-                if err := self.expect("int","float",isType=False):
+                if err := self.expect("int", "char", "float", isType=False):
                     return None, err
 
                 var_type = self.cur_tok.value

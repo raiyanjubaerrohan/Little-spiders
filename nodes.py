@@ -40,14 +40,6 @@ class NegNode(Node):
         return f"Neg({self.value})"
 
 
-    def to_dict(self):
-        return {
-            "node_type": "NegitiveNode",
-            "value": self.value.to_dict(),
-            "llvm_type": str(self.llvm_type)
-        }
-
-
 class PosNode(Node):
     def __init__(self, value):
         self.value = value #the actual value, node
@@ -55,14 +47,6 @@ class PosNode(Node):
 
     def codegen(self, builder):
         return self.value
-
-
-    def to_dict(self):
-        return {
-            "node_type": "PositiveNode",
-            "value": self.value.to_dict(),
-            "llvm_type": str(self.llvm_type)
-        }
 
     def __repr__(self):
         return f"PosNode({self.value})"
@@ -81,12 +65,6 @@ class ConstantNode(Node):
         return Constant(self.llvm_type, self.value)
 
 
-    def to_dict(self):
-        return {
-            "node_type":"Constant",
-            "value": self.value,
-            "llvm_type": str(self.llvm_type)
-        }
 
 
 class BinOpNode(Node):
@@ -146,65 +124,68 @@ class BinOpNode(Node):
 
         else:
             raise Exception("not a valid operation")
-            
-
-    def to_dict(self):
-        return {
-            "node_type": "BinOperationNode",
-            "value": self.value,
-            "left": self.lhs.to_dict(),
-            "right": self.rhs.to_dict(),
-            "llvm_type": str(self.llvm_type)
-        }
     
 
 class CastFloToInt(Node):
-    def __init__(self, value):
+    def __init__(self, value, casting_type):
         self.value = value # a node subclass
-        self.llvm_type = "intiger"
+        self.llvm_type = getCurrectType(casting_type)
+        self.type = casting_type #the llvm int type, for fexibility
 
 
     def codegen(self, builder):
         return builder.fptosi(
             self.value.codegen(builder),
-            IntType(32)
+            self.type
         )
     
 
-    def to_dict(self):
-        return {
-            "node_type": "CastFloatToInteger",
-            "value": self.value.to_dict(),
-            "llvm_type": str(self.llvm_type)
-        }
-
     def __repr__(self):
-
         return f"CastFloToInt({self.value})"
 
 
 class CastIntToFlo(Node):
-    def __init__(self, value):
+    def __init__(self, value, casting_type):
         self.value = value # a node subclass
-        self.llvm_type = "float"
+        self.llvm_type = getCurrectType(casting_type)
+        self.type = casting_type
 
     def codegen(self, builder):
         return builder.sitofp(
             self.value.codegen(builder),
-            FloatType()
+            self.type
         )
-
-    def to_dict(self):
-        return {
-            "node_type": "CastIntigerToFloat",
-            "value": self.value.to_dict(),
-            "llvm_type": str(self.llvm_type)
-        }
 
     def __repr__(self):
         return f"CastIntToFlo({self.value})"
 
-        
+
+class CastIntLow(Node):
+    def __init__(self, value, casting_type):
+        self.value = value
+        self.llvm_type = getCurrectType(casting_type)
+        self.type = casting_type #the actual llvm type,
+        #so we do not have to create more classes
+
+    def codegen(self, builder):
+        return builder.trunc(
+            self.value.codegen(builder),
+            self.type
+        )
+
+
+class CastIntHigh(Node):
+    def __init__(self, value, casting_type):
+        self.value = value
+        self.llvm_type = getCurrectType(casting_type)
+        self.type = casting_type
+
+    def codegen(self, builder):
+        return builder.sext(
+            self.value.codegen(builder),
+            self.type
+        )
+
 
 class VarAssignNode(Node):
     def __init__(self, value, expr, type_):
@@ -257,13 +238,6 @@ class VarDeclareNode(Node):
     def __repr__(self):
         return f"let {self.value}:{self.llvm_type} = {self.expr}"
 
-    def to_dict(self):
-        return {
-            "node_type": "VariableDeclareNode",
-            "value": self.value,
-            "expr": self.expr.to_dict(),
-            "llvm_type": self.llvm_type
-        }
 
 
 class VarFetchNode(Node):

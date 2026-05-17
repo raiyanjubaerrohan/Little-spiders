@@ -1,6 +1,3 @@
-let a:float = 20 + 6 * 9.3;
+let a:float = 20 + 6 ;
 
-a = 20;
-
-let b = 2;
-b = a + 2;
+let b : char = -a;
