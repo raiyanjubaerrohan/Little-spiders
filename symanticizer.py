@@ -27,6 +27,10 @@ class Symantics:
                 elif exp_type == "char":
                     varDec.llvm_type = IntType(8)
                     expression.llvm_type = IntType(8)
+
+                elif exp_type == "short":
+                    varDec.llvm_type = IntType(16)
+                    expression.llvm_type = IntType(16)
                     
                 elif exp_type == "float":
                     varDec.llvm_type = FloatType()
@@ -56,6 +60,9 @@ class Symantics:
 
             elif exp_type == "char":
                 typed_ast.llvm_type = IntType(8)
+
+            elif exp_type == "short":
+                typed_ast.llvm_type = IntType(16)
 
             elif exp_type == "float":
                 typed_ast.llvm_type = FloatType()
@@ -93,6 +100,9 @@ class Symantics:
             elif exp_type == "char":
                 binOp.llvm_type = IntType(8)
 
+            elif exp_type == "short":
+                binOp.llvm_type = IntType(16)
+
             elif exp_type == "float":
                 binOp.llvm_type = FloatType()
 
@@ -117,6 +127,22 @@ class Symantics:
                         IntType(32)
                     )
 
+                elif self.cur_node == "char":
+
+                    self.cur_node.llvm_type = IntType(8)
+                    return "int", CastIntHigh(
+                        self.cur_node,
+                        IntType(32)
+                    )
+
+                elif self.cur_node == "short":
+
+                    self.cur_node.llvm_type = IntType(16)
+                    return "int", CastIntHigh(
+                        self.cur_node,
+                        IntType(32)
+                    )
+
                 elif self.cur_node != "intiger":
                     raise Exception(
                         f"can not convert type {self.cur_node}"
@@ -136,8 +162,15 @@ class Symantics:
                         IntType(8)
                     )
 
-                elif self.cur_node == "intiger":
+                elif self.cur_node.llvm_type in ("intiger","int"):
                     self.cur_node.llvm_type = IntType(32)
+                    return "char", CastIntLow(
+                        self.cur_node,
+                        IntType(8)
+                    )
+
+                elif self.cur_node == "short":
+                    self.cur_node.llvm_type = IntType(16)
                     return "char", CastIntLow(
                         self.cur_node,
                         IntType(8)
@@ -146,11 +179,37 @@ class Symantics:
                 self.cur_node.llvm_type = IntType(8)
 
                 return "char", self.cur_node
-                    
+
+
+            elif exp_type == "short":
+
+                if self.cur_node.llvm_type in ("intiger", "int"):
+                    self.cur_node.llvm_type = IntType(32)
+                    return "short", CastIntLow(
+                        self.cur_node,
+                        IntType(16)
+                    )
+
+                elif self.cur_node == "char":
+                    self.cur_node.llvm_type = IntType(8)
+                    return "short", CastIntHigh(
+                        self.cur_node,
+                        IntType(16)
+                    )
+
+                elif self.cur_node == "float":
+                    self.cur_node.llvm_type = FloatType()
+                    return "short", CastFloToInt(
+                        self.cur_node,
+                        IntType(16)
+                    )
+
+                self.cur_node.llvm_type = IntType(16)
+                return "short", self.cur_node
 
             elif exp_type == "float":
 
-                if self.cur_node == "intiger":
+                if self.cur_node.llvm_type in ("intiger","int"):
                     self.cur_node.llvm_type = IntType(32)
 
                     return "float",CastIntToFlo(
@@ -166,6 +225,14 @@ class Symantics:
                         FloatType()
                     )
 
+                elif self.cur_node == "short":
+                    self.cur_node.llvm_type = IntType(16)
+
+                    return "float", CastIntToFlo(
+                        self.cur_node,
+                        FloatType()
+                    )
+
                 elif self.cur_node != "float":
                     raise Exception(
                         f"can not convert type {self.cur_node}"
@@ -174,6 +241,7 @@ class Symantics:
                 self.cur_node.llvm_type = FloatType()
                 return "float",self.cur_node
 
+            return 0, None
             #end
 
         elif isinstance(self.cur_node, NegNode):

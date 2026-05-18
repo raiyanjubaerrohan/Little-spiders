@@ -194,7 +194,12 @@ class Parser:
                 if self.cur_tok == None and self.cur_tok != T_EOS:
                     return "needed", None
 
-                if err := self.expect("int", "char", "float", isType=False):
+                if err := self.expect(
+                
+                "int", "char", "short", #integer types
+                "float", #floating types
+                isType=False):
+                
                     return None, err
 
                 var_type = self.cur_tok.value
