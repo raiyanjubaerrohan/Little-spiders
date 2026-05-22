@@ -41,7 +41,7 @@ keywords = [
     "float",
     "char",
     "short",
-    "long",
+    "double",
     "func",
     "end"
 ]

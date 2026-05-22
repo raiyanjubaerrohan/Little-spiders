@@ -110,7 +110,7 @@ class Parser:
             return self.expr(), None
 
         elif (t == T_LITERAL
-        and t.typer in ("intiger","float")):
+        and t.typer in ("int","float")):
 
             self.next_tok()
             return ConstantNode(t.value, t.typer), None
@@ -195,12 +195,10 @@ class Parser:
                     return "needed", None
 
                 if err := self.expect(
-                
-                "int", "char", "short", #integer types
-                "float", #floating types
-                isType=False):
-                
-                    return None, err
+                    "int", "char", "short", #integer types
+                    "float", "double", #floating types
+                    isType=False
+                ): return None, err
 
                 var_type = self.cur_tok.value
                 self.next_tok()
@@ -230,7 +228,7 @@ class Parser:
             if var_expr:
                 varDecNode.expr = var_expr
             else:
-                varDecNode.expr = ConstantNode(0, "intiger")
+                varDecNode.expr = ConstantNode(0, "int")
 
 
             if var_type:

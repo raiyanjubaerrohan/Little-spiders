@@ -1,5 +1,5 @@
 from nodes import *
-from llvmlite.ir import FloatType, IntType
+from llvmlite.ir import FloatType, IntType, DoubleType
 
 class Symantics:
 
@@ -19,8 +19,7 @@ class Symantics:
 
             if exp_type and expression:
             
-                if exp_type in ("int", "intiger"):
-                #equals to exp_type == "int" or exp_type == "intiger"
+                if exp_type  == "int":
                     varDec.llvm_type = IntType(32)
                     expression.llvm_type = IntType(32)
 
@@ -35,6 +34,10 @@ class Symantics:
                 elif exp_type == "float":
                     varDec.llvm_type = FloatType()
                     expression.llvm_type = FloatType()
+
+                elif exp_type == "double":
+                    varDec.llvm_type = DoubleType()
+                    expression.llvm_type = DoubleType()
 
                 varDec.expr = expression
 
@@ -55,7 +58,7 @@ class Symantics:
             self.cur_node = node.expr
             exp_type, typed_ast = self.simanticize(exp_type)
 
-            if exp_type in ("int","intiger"):
+            if exp_type == "int":
                 typed_ast.llvm_type = IntType(32)
 
             elif exp_type == "char":
@@ -66,6 +69,9 @@ class Symantics:
 
             elif exp_type == "float":
                 typed_ast.llvm_type = FloatType()
+
+            elif exp_type == "double":
+                typed_ast.llvm_type = DoubleType()
 
             return 0,VarAssignNode(
                 node.value,
@@ -106,6 +112,9 @@ class Symantics:
             elif exp_type == "float":
                 binOp.llvm_type = FloatType()
 
+            elif exp_type == "double":
+                binOp.llvm_type = DoubleType()
+
             else:
                 raise Exception("something went wrong, from symanticizer")
 
@@ -119,127 +128,45 @@ class Symantics:
 
             elif exp_type == "int":
             
-                if self.cur_node == "float":
-                
-                    self.cur_node.llvm_type = FloatType()
-                    return "int", CastFloToInt(
-                        self.cur_node,
-                        IntType(32)
-                    )
-
-                elif self.cur_node == "char":
-
-                    self.cur_node.llvm_type = IntType(8)
-                    return "int", CastIntHigh(
-                        self.cur_node,
-                        IntType(32)
-                    )
-
-                elif self.cur_node == "short":
-
-                    self.cur_node.llvm_type = IntType(16)
-                    return "int", CastIntHigh(
-                        self.cur_node,
-                        IntType(32)
-                    )
-
-                elif self.cur_node != "intiger":
-                    raise Exception(
-                        f"can not convert type {self.cur_node}"
-                    )
-
-                self.cur_node.llvm_type = IntType(32)
-                
-                return "int",self.cur_node
+                return self.select_type(
+                    IntType(32),
+                    "int",
+                    float=CastFloToInt,
+                    char=CastIntHigh,
+                    short=CastIntHigh
+                )
 
 
             elif exp_type == "char":
 
-                if self.cur_node == "float":
-                    self.cur_node.llvm_type = FloatType()
-                    return "char", CastFloToInt(
-                        self.cur_node,
-                        IntType(8)
-                    )
-
-                elif self.cur_node.llvm_type in ("intiger","int"):
-                    self.cur_node.llvm_type = IntType(32)
-                    return "char", CastIntLow(
-                        self.cur_node,
-                        IntType(8)
-                    )
-
-                elif self.cur_node == "short":
-                    self.cur_node.llvm_type = IntType(16)
-                    return "char", CastIntLow(
-                        self.cur_node,
-                        IntType(8)
-                    )
-
-                self.cur_node.llvm_type = IntType(8)
-
-                return "char", self.cur_node
+                return self.select_type(
+                    IntType(8),
+                    "char",
+                    float=CastFloToInt,
+                    int=CastIntLow,
+                    short=CastIntLow
+                )
 
 
             elif exp_type == "short":
 
-                if self.cur_node.llvm_type in ("intiger", "int"):
-                    self.cur_node.llvm_type = IntType(32)
-                    return "short", CastIntLow(
-                        self.cur_node,
-                        IntType(16)
-                    )
-
-                elif self.cur_node == "char":
-                    self.cur_node.llvm_type = IntType(8)
-                    return "short", CastIntHigh(
-                        self.cur_node,
-                        IntType(16)
-                    )
-
-                elif self.cur_node == "float":
-                    self.cur_node.llvm_type = FloatType()
-                    return "short", CastFloToInt(
-                        self.cur_node,
-                        IntType(16)
-                    )
-
-                self.cur_node.llvm_type = IntType(16)
-                return "short", self.cur_node
+                return self.select_type(
+                    IntType(16),
+                    "short",
+                    int=CastIntLow,
+                    char=CastIntHigh,
+                    float=CastFloToInt
+                )
 
             elif exp_type == "float":
 
-                if self.cur_node.llvm_type in ("intiger","int"):
-                    self.cur_node.llvm_type = IntType(32)
-
-                    return "float",CastIntToFlo(
-                        self.cur_node,
-                        FloatType()
-                    )
-
-                elif self.cur_node == "char":
-                    self.cur_node.llvm_type = IntType(8)
-
-                    return "float", CastIntToFlo(
-                        self.cur_node,
-                        FloatType()
-                    )
-
-                elif self.cur_node == "short":
-                    self.cur_node.llvm_type = IntType(16)
-
-                    return "float", CastIntToFlo(
-                        self.cur_node,
-                        FloatType()
-                    )
-
-                elif self.cur_node != "float":
-                    raise Exception(
-                        f"can not convert type {self.cur_node}"
-                    )
-
-                self.cur_node.llvm_type = FloatType()
-                return "float",self.cur_node
+                return self.select_type(
+                    FloatType(),
+                    "float",
+                    int=CastIntToFlo,
+                    char=CastIntToFlo,
+                    short=CastIntToFlo
+                )
 
             return 0, None
             #end
@@ -267,8 +194,7 @@ class Symantics:
     def align_type(self, lhs, rhs, exp_type):
         if exp_type:
             return exp_type, lhs, rhs
-
-
+            
         else: 
             if "float" in (
                 lhs.llvm_type,
@@ -276,7 +202,7 @@ class Symantics:
             ):
                 #equal to
                 #lhs or rhs is "float"
-                if lhs == "intiger":
+                if lhs == "int":
                     lhs.llvm_type = IntType(32)
                     lhs = CastIntToFlo(lhs, FloatType())
 
@@ -287,7 +213,7 @@ class Symantics:
                 else:
                     lhs.llvm_type = FloatType()
 
-                if rhs == "intiger":
+                if rhs == "int":
                     rhs.llvm_type = IntType(32)
                     rhs = CastIntToFlo(rhs, FloatType())
 
@@ -300,8 +226,7 @@ class Symantics:
 
                 return "float", lhs, rhs
 
-            elif ("intiger" in (lhs.llvm_type, rhs.llvm_type)
-            or "int" in (lhs.llvm_type, rhs.llvm_type)):
+            elif "int" in (lhs.llvm_type, rhs.llvm_type):
             
                 if lhs == "char":
                     lhs.llvm_type = IntType(8)
@@ -316,6 +241,45 @@ class Symantics:
         #end
     #end
 
+    def select_type(
+        self,
+        base_type, # llvm type instance
+        base_str,
+        **cast_types #the reference of casting type
+    ):
+
+        current_type = ""
+    
+        if self.cur_node.llvm_type == "int":
+            self.cur_node.llvm_type = IntType(32)
+            current_type = "int"
+
+        elif self.cur_node == "char":
+            self.cur_node.llvm_type = IntType(8)
+            current_type = "char"
+            
+
+        elif self.cur_node == "short":
+            self.cur_node.llvm_type = IntType(16)
+            current_type = "short"
+
+        elif self.cur_node == "float":
+            self.cur_node.llvm_type = FloatType()
+            current_type = "float"
+
+        elif self.cur_node != base_str:
+            raise Exception(f"unable to cast {self.cur_node}")
+
+        if current_type in cast_types:
+            return base_str, cast_types[current_type](
+                self.cur_node,
+                base_type
+            )
+
+        #else
+        return base_type, self.cur_node
+
+    #end
 #end
 
         

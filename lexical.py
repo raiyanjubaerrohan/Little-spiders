@@ -213,7 +213,7 @@ class Lexer:
             return Token(T_LITERAL, float(num_str), "float"), None
 
         else:
-            return Token(T_LITERAL, int(num_str), "intiger"), None
+            return Token(T_LITERAL, int(num_str), "int"), None
 
 
         #end
