@@ -93,7 +93,6 @@ class Lexer:
             elif self.cur == '=':
                 res, err = self.makeEqs()
                 if err: return None, err
-
                 tokens.append(res)
 
             elif self.cur == '<':
@@ -246,6 +245,9 @@ class Lexer:
 
         if iden in keywords:
             return Token(T_KEY, str(iden))
+
+        if iden in ("true", "false"):
+            return Token(T_LITERAL, str(iden), "bool")
 
         return Token(T_IDEN, str(iden))
             

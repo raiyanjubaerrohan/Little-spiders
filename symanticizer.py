@@ -23,6 +23,10 @@ class Symantics:
                     varDec.llvm_type = IntType(32)
                     expression.llvm_type = IntType(32)
 
+                elif exp_type == "bool":
+                    varDec.llvm_type = IntType(1)
+                    expression.llvm_type = IntType(1)
+
                 elif exp_type == "char":
                     varDec.llvm_type = IntType(8)
                     expression.llvm_type = IntType(8)
@@ -61,6 +65,9 @@ class Symantics:
             if exp_type == "int":
                 typed_ast.llvm_type = IntType(32)
 
+            elif exp_type == "bool":
+                typed_ast.llvm_type = IntType(1)
+
             elif exp_type == "char":
                 typed_ast.llvm_type = IntType(8)
 
@@ -80,7 +87,7 @@ class Symantics:
             )
         
         elif isinstance(self.cur_node, BinOpNode):
-
+        
             tree = self.cur_node
             self.cur_node = tree.lhs
             _, ty_lhs = self.simanticize(exp_type)
@@ -103,6 +110,9 @@ class Symantics:
             if exp_type == "int":
                 binOp.llvm_type = IntType(32)
 
+            elif exp_type == "bool":
+                binOp.llvm_type = IntType(1)
+
             elif exp_type == "char":
                 binOp.llvm_type = IntType(8)
 
@@ -121,7 +131,7 @@ class Symantics:
             return exp_type, binOp
 
 
-        elif isinstance(self.cur_node, (ConstantNode, VarFetchNode)) :
+        elif isinstance(self.cur_node, (ConstantNode, VarFetchNode)):
         
             if not exp_type:
                 return self.cur_node.llvm_type, self.cur_node
@@ -132,8 +142,10 @@ class Symantics:
                     IntType(32),
                     "int",
                     float=CastFloToInt,
+                    double=CastFloToInt,
                     char=CastIntHigh,
-                    short=CastIntHigh
+                    short=CastIntHigh,
+                    bool=CastIntHigh
                 )
 
 
@@ -143,8 +155,22 @@ class Symantics:
                     IntType(8),
                     "char",
                     float=CastFloToInt,
+                    double=CastFloToInt,
                     int=CastIntLow,
-                    short=CastIntLow
+                    short=CastIntLow,
+                    bool=CastIntHigh
+                )
+
+            elif exp_type == "bool":
+
+                return self.select_type(
+                    IntType(1),
+                    "bool",
+                    float=CastFloToInt,
+                    double=CastFloToInt,
+                    int=CastIntLow,
+                    short=CastIntLow,
+                    char=CastIntLow
                 )
 
 
@@ -155,7 +181,9 @@ class Symantics:
                     "short",
                     int=CastIntLow,
                     char=CastIntHigh,
-                    float=CastFloToInt
+                    float=CastFloToInt,
+                    double=CastFloToInt,
+                    bool=CastIntHigh
                 )
 
             elif exp_type == "float":
@@ -165,7 +193,21 @@ class Symantics:
                     "float",
                     int=CastIntToFlo,
                     char=CastIntToFlo,
-                    short=CastIntToFlo
+                    short=CastIntToFlo,
+                    double=CastFloLow,
+                    bool=CastIntToFlo
+                )
+
+            elif exp_type == "double":
+            
+                return self.select_type(
+                    DoubleType(),
+                    "double",
+                    int=CastIntToFlo,
+                    char=CastIntToFlo,
+                    short=CastIntToFlo,
+                    float=CastFloHigh,
+                    bool=CastIntToFlo
                 )
 
             return 0, None
@@ -191,52 +233,138 @@ class Symantics:
         return 0, None
 
 
+
     def align_type(self, lhs, rhs, exp_type):
         if exp_type:
             return exp_type, lhs, rhs
-            
-        else: 
-            if "float" in (
-                lhs.llvm_type,
-                rhs.llvm_type
-            ):
-                #equal to
-                #lhs or rhs is "float"
-                if lhs == "int":
-                    lhs.llvm_type = IntType(32)
-                    lhs = CastIntToFlo(lhs, FloatType())
 
-                elif lhs == "char":
-                    lhs.llvm_type = IntType(8)
-                    lhs = CastIntToFlo(lhs, FloatType())
+        #the else should be sorted by dominance to be currect         
+        else:
+            if "double" in (lhs.llvm_type, rhs.llvm_type):
+                #equals to
+                #lhs or rhs is "double"
 
-                else:
-                    lhs.llvm_type = FloatType()
+                temp = self.cur_node
+                #temporary var to store the current node
 
-                if rhs == "int":
-                    rhs.llvm_type = IntType(32)
-                    rhs = CastIntToFlo(rhs, FloatType())
+                self.cur_node = lhs #for passing in select_type
+                _, lhs = self.select_type(
+                    DoubleType(),
+                    "double",
+                    float=CastFloHigh,
+                    int=CastIntToFlo,
+                    short=CastIntToFlo,
+                    char=CastIntToFlo,
+                    bool=CastIntToFlo
+                )
 
-                elif rhs == "char":
-                    rhs.llvm_type = IntType(8)
-                    rhs = CastIntToFlo(rhs, FloatType())
+                self.cur_node = rhs
+                _, rhs = self.select_type(
+                    DoubleType(),
+                    "double",
+                    float=CastFloHigh,
+                    int=CastIntToFlo,
+                    short=CastIntToFlo,
+                    char=CastIntToFlo,
+                    bool=CastIntToFlo
+                )
 
-                else:
-                    rhs.llvm_type = FloatType()
+                #at very end reassign the current node to be currect
+                self.cur_node = temp
+
+                return "double", lhs, rhs
+                                
+            if "float" in (lhs.llvm_type, rhs.llvm_type):
+
+                #same as upper check
+                temp = self.cur_node
+
+                self.cur_node = lhs
+                _, lhs = self.select_type(
+                    FloatType(),
+                    "float",
+                    int=CastIntToFlo,
+                    short=CastIntToFlo,
+                    char=CastIntToFlo,
+                    bool=CastIntToFlo
+                )
+
+                self.cur_node = rhs
+                _, rhs = self.select_type(
+                    FloatType(),
+                    "float",
+                    int=CastIntToFlo,
+                    short=CastIntToFlo,
+                    char=CastIntToFlo,
+                    bool=CastIntToFlo
+                )
+
+                self.cur_node = temp
 
                 return "float", lhs, rhs
 
-            elif "int" in (lhs.llvm_type, rhs.llvm_type):
-            
-                if lhs == "char":
-                    lhs.llvm_type = IntType(8)
-                    lhs = CastIntHigh(lhs, IntType(32))
+            if "int" in (lhs.llvm_type, rhs.llvm_type):
 
-                if rhs == "char":
-                    rhs.llvm_type = IntType(8)
-                    rhs = CastIntHigh(rhs, IntType(32))
+                temp = self.cur_node
 
-            return "int", lhs, rhs
+                self.cur_node = lhs
+                _, lhs = self.select_type(
+                    IntType(32),
+                    "int",
+                    short=CastIntHigh,
+                    char=CastIntHigh,
+                    bool=CastIntHigh
+                )
+
+                self.cur_node = rhs
+                _, rhs = self.select_type(
+                    IntType(32),
+                    "int",
+                    short=CastIntHigh,
+                    char=CastIntHigh,
+                    bool=CastIntHigh
+                )
+
+                self.cur_node = temp
+
+                return "int", lhs, rhs
+
+            if "short" in (lhs.llvm_type, rhs.llvm_type):
+
+                temp = self.cur_node
+
+                self.cur_node = lhs
+                _, lhs = self.select_type(
+                    IntType(16),
+                    "short",
+                    char=CastIntHigh,
+                    bool=CastIntHigh
+                )
+
+                self.cur_node = rhs
+                _, rhs = self.select_type(
+                    IntType(16),
+                    "short",
+                    char=CastIntHigh,
+                    bool=CastIntHigh
+                )
+
+                return "short", lhs, rhs
+
+            if "char" in (lhs.llvm_type, rhs.llvm_type):
+                #this is different because of optimization
+                if lhs == "bool":
+                    lhs.llvm_type = IntType(1)
+                    lhs = CastIntHigh(lhs, IntType(8))
+
+                if rhs == "bool":
+                    rhs.llvm_type = IntType(1)
+                    rhs = CastIntHigh(rhs, IntType(8))
+
+                return "char", lhs, rhs
+
+            return "bool", lhs, rhs #every oprand is boolean
+
 
         #end
     #end
@@ -263,9 +391,17 @@ class Symantics:
             self.cur_node.llvm_type = IntType(16)
             current_type = "short"
 
+        elif self.cur_node == "bool":
+            self.cur_node.llvm_type = IntType(1)
+            current_type = "bool"
+
         elif self.cur_node == "float":
             self.cur_node.llvm_type = FloatType()
             current_type = "float"
+
+        elif self.cur_node == "double":
+            self.cur_node.llvm_type = DoubleType()
+            current_type = "double"
 
         elif self.cur_node != base_str:
             raise Exception(f"unable to cast {self.cur_node}")
@@ -277,7 +413,7 @@ class Symantics:
             )
 
         #else
-        return base_type, self.cur_node
+        return base_str, self.cur_node
 
     #end
 #end

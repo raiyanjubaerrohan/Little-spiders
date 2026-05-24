@@ -42,8 +42,9 @@ keywords = [
     "char",
     "short",
     "double",
+    "bool",
     "func",
-    "end"
+    "end",
 ]
 
 
@@ -58,6 +59,7 @@ def getCurrectType(ty) -> str:
         if ty.width == 32: return "int"
         if ty.width == 16: return "short"
         if ty.width == 8 : return "char"
+        if ty.width == 1 : return "bool"
 
     elif isinstance(ty, HalfType):
         return "half"

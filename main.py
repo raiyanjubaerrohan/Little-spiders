@@ -72,7 +72,7 @@ while not theEnd:
     while True:
         tlast, err = parser.parse()
         #tlast is Type Less Abstract Syntax Tree
-
+        
         if tlast == "needed":
             break
 

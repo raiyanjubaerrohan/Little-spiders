@@ -65,8 +65,6 @@ class ConstantNode(Node):
         return Constant(self.llvm_type, self.value)
 
 
-
-
 class BinOpNode(Node):
     def __init__(self, value, lhs, rhs):
         self.value = value #the sign
@@ -186,6 +184,29 @@ class CastIntHigh(Node):
             self.type
         )
 
+class CastFloLow(Node):
+    def __init__(self, value, casting_type):
+        self.value = value
+        self.llvm_type = getCurrectType(casting_type)
+        self.type = casting_type
+
+    def codegen(self, builder):
+        return builder.fptrunc(
+            self.value.codegen(builder),
+            self.type
+        )
+
+class CastFloHigh(Node):
+    def __init__(self, value, casting_type):
+        self.value = value
+        self.llvm_type = getCurrectType(casting_type)
+        self.type = casting_type
+
+    def codegen(self, builder):
+        return builder.fpext(
+            self.value.codegen(builder),
+            self.type
+        )
 
 class VarAssignNode(Node):
     def __init__(self, value, expr, type_):
@@ -252,13 +273,5 @@ class VarFetchNode(Node):
 
     def codegen(self, builder):
         return builder.load(self.value, align=self.value.align)
-
-
-
-
-        
-
-
-        
 
 

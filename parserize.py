@@ -1,8 +1,6 @@
 from nodes import *
-from utils import T_EOS, variables_ptr
+from utils import T_EOS, variables_ptr, T_IDEN, T_EQ
 from lexical import Token
-from utils import T_IDEN, T_EQ
-
 
 class Parser:
 
@@ -10,6 +8,7 @@ class Parser:
         self.tokens:list[Token] = []
         self.cur_tok = None
         self.cur_pos = 0
+        self.EOE = T_EOS
 
 
     def consume(self, tokens:list[Token]):
@@ -34,7 +33,7 @@ class Parser:
 
         if err: return None, err
 
-        while (self.cur_tok != T_EOS
+        while (self.cur_tok != self.EOE
         and self.cur_tok.type in (
             T_ADD, T_SUB, T_MOD, T_RPAN1
         )):
@@ -63,7 +62,7 @@ class Parser:
 
         if err: return None, err
 
-        while (self.cur_tok != T_EOS
+        while (self.cur_tok != self.EOE
         and self.cur_tok.type in(
             T_MUL, T_DIV, T_RPAN1
         )):
@@ -109,11 +108,16 @@ class Parser:
             self.next_tok()
             return self.expr(), None
 
-        elif (t == T_LITERAL
-        and t.typer in ("int","float")):
-
+        elif t == T_LITERAL:
+            #a common factor
             self.next_tok()
-            return ConstantNode(t.value, t.typer), None
+        
+            if t.typer in ("int","float"):
+                return ConstantNode(t.value, t.typer), None
+                
+            elif t.typer == "bool":
+                return ConstantNode(1 if t.value == "true" else 0, "bool"), None
+                
 
         elif t == T_IDEN:
         
@@ -142,7 +146,7 @@ class Parser:
     def expect(self, *v, isType = True):
 
         if isType:
-            if not self.cur_tok.type in  v:
+            if not self.cur_tok.type in v:
                 return Exception(
                     f"expected {v}"
                 )
@@ -155,6 +159,100 @@ class Parser:
 
         return None
 
+    def parse_var(self):
+
+        self.next_tok()
+
+        if self.cur_tok == None and self.cur_tok != T_EOS:
+            return "needed", None
+
+        if err := self.expect(T_IDEN):
+            return None, err
+
+        var_name = self.cur_tok.value
+        var_type = 0
+        var_expr = 0
+
+        self.next_tok()
+
+        if self.cur_tok == T_COLON:
+            self.next_tok()
+
+            if self.cur_tok == None and self.cur_tok != T_EOS:
+                return "needed", None
+
+            if err := self.expect(
+                "int", "char", "short", "bool", #integer types
+                "float", "double", #floating point types
+                isType=False
+            ): return None, err
+
+            var_type = self.cur_tok.value
+            self.next_tok()
+
+        if self.cur_tok == T_EQ:
+            self.next_tok()
+
+            var_expr, err = self.expr()
+
+            if var_expr == "needed": return "needed", None
+            if err: return None, err
+
+        if self.cur_tok == None and self.cur_tok != T_EOS:
+            return "needed", None
+
+        if err := self.expect(T_EOS):
+            return None, err
+
+        self.next_tok() #consume EOS
+
+        if (not var_expr) and (not var_type):
+            return None, Exception(f"excepted a type or a default value, {var_name}")
+
+        varDecNode = VarDeclareNode(var_name)
+
+        if var_expr:
+            varDecNode.expr = var_expr
+        else:
+            varDecNode.expr = ConstantNode(0, "int")
+
+        if var_type:
+            varDecNode.llvm_type = var_type
+
+        #cutting the privious successful node
+        self.tokens = self.tokens[self.cur_pos:]
+        #from current index to the end
+
+        return varDecNode, None
+
+
+    def parse_assign(self, iden):
+        self.next_tok()
+
+        expression, err = self.expr()
+
+        if expression == "needed": return "needed", None
+        if err: return None, err
+
+        if err := self.expect(T_EOS):
+            return None, ere
+
+        self.next_tok() #consume EOS
+
+        if iden in variables_ptr:
+
+            #cutting the last successful node
+            self.tokens = self.tokens[self.cur_pos:]
+            #from current position to end remains
+
+            return VarAssignNode(
+                variables_ptr[iden]["value"],
+                expression,
+                variables_ptr[iden]["type"]
+            ), None
+
+        #else
+        return None, Exception(f"unknow identifier {iden_name}")
 
 
     def parse(self):
@@ -173,110 +271,21 @@ class Parser:
 
         #variable declare entry point
         elif self.cur_tok.value == "let":
+            return self.parse_var()
 
-            self.next_tok()
-
-            if self.cur_tok == None and self.cur_tok != T_EOS:
-                return "needed", None
-
-            if err := self.expect(T_IDEN):
-                return None, err
-
-            var_name = self.cur_tok.value
-            var_type = 0
-            var_expr = 0
-
-            self.next_tok()
-
-            if self.cur_tok == T_COLON:
-                self.next_tok()
-
-                if self.cur_tok == None and self.cur_tok != T_EOS:
-                    return "needed", None
-
-                if err := self.expect(
-                    "int", "char", "short", #integer types
-                    "float", "double", #floating types
-                    isType=False
-                ): return None, err
-
-                var_type = self.cur_tok.value
-                self.next_tok()
-
-            if self.cur_tok == T_EQ:
-                self.next_tok()
-
-                var_expr, err = self.expr()
-
-                if err: return None, err
-
-            if self.cur_tok == None and self.cur_tok != T_EOS:
-                return "needed", None
-
-            if err := self.expect(T_EOS):
-                return None, err
-
-            self.next_tok() #consume EOS
-
-
-            if (not var_expr) and (not var_type):
-                return None, Exception(f"excepted a type or an default value, {var_name}")
-
-            varDecNode = VarDeclareNode(var_name)
-
-
-            if var_expr:
-                varDecNode.expr = var_expr
-            else:
-                varDecNode.expr = ConstantNode(0, "int")
-
-
-            if var_type:
-                varDecNode.llvm_type = var_type
-
-
-            #cutting the privious successful node
-            self.tokens = self.tokens[self.cur_pos:]
-            #from current index to the end
-            
-            return varDecNode, None
-
-
+        #calling or assign entry point
         elif self.cur_tok == T_IDEN:
         
             iden_name = self.cur_tok.value
             self.next_tok()
-
             
-            #means this is assign node
+            #means this is an assign node
             if self.cur_tok == T_EQ:
-                self.next_tok()
-                express ,err = self.expr()
+                return self.parse_assign(iden_name)
 
-                if express == "needed":
-                    return express, None
-
-                if err:
-                    return None, err
-
-                if err := self.expect(T_EOS):
-                    return None, err
-
-                self.next_tok() # consume EOS
-
-                if iden_name in variables_ptr:
-
-                    #cutting the last succesful node
-                    self.tokens = self.tokens[self.cur_pos:]
-                
-                    return VarAssignNode(
-                        variables_ptr[iden_name]["value"],
-                        express,
-                        variables_ptr[iden_name]["type"]
-                    ), None
-
-                #else
-                return None, Exception(f"unknow identifier {iden_name}")
+            #means this is a call node
+            elif self.cur_tok == T_LPAN1:
+                pass
                 
 
         return "needed", None
