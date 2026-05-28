@@ -164,7 +164,7 @@ class Lexer:
             self.next_chr()
             return Token(T_GTE)
 
-        return Token(T_GE)
+        return Token(T_GT)
                 
         
 
@@ -172,12 +172,18 @@ class Lexer:
         eqs = ''
 
         while (self.cur != None
-        and self.cur in ('=','>','?')):
+        and self.cur in ('=','>','!')):
             eqs += self.cur
             self.next_chr()
 
         if eqs == '=':
             return Token(T_EQ), None
+
+        elif eqs == '==':
+            return Token(T_EQS), None
+
+        elif eqs == '!=':
+            return Token(T_NEQ),  None
 
         elif eqs == '=>':
             return Token(T_ARROW), None
@@ -250,8 +256,5 @@ class Lexer:
             return Token(T_LITERAL, str(iden), "bool")
 
         return Token(T_IDEN, str(iden))
-            
 
-        
-                
 

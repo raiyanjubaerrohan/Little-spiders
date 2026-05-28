@@ -130,6 +130,28 @@ class Symantics:
 
             return exp_type, binOp
 
+        elif isinstance(self.cur_node, CompareNode):
+
+            tree = self.cur_node
+
+            self.cur_node = tree.lhs
+            _, typed_lhs = self.simanticize(exp_type)
+
+            self.cur_node = tree.rhs
+            _, typed_rhs = self.simanticize(exp_type)
+
+            exp_type, ty_lhs, ty_rhs = self.align_type(
+                typed_lhs,
+                typed_rhs,
+                exp_type
+            )
+
+            cmpNode = CompareNode(tree.value, ty_lhs, ty_rhs)
+
+            cmpNode.llvm_type = "bool"
+            cmpNode.mean_type = exp_type
+
+            return "bool" , cmpNode
 
         elif isinstance(self.cur_node, (ConstantNode, VarFetchNode)):
         

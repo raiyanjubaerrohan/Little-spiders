@@ -6,7 +6,7 @@ class Node:
     def __init__(self, value):
         self.value = value #just a place holder
         self.llvm_type = ""
-        
+
 
     def codegen(self, builder):
         return None
@@ -70,7 +70,7 @@ class BinOpNode(Node):
         self.value = value #the sign
         self.lhs = lhs #left hand side, node instance
         self.rhs = rhs #right hand side, node instance
-        self.llvm_type = "" #the type, auto assign by parser
+        self.llvm_type = "" #the type, auto assign by symanticizer
 
     def __repr__(self):
         return f"BinOp({self.lhs} {self.value} {self.rhs})"
@@ -80,49 +80,100 @@ class BinOpNode(Node):
         ls = self.lhs.codegen(builder)
         rs = self.rhs.codegen(builder)
 
-        if self.value == T_ADD:
-            if isinstance(
-                self.llvm_type,
-                IntType
-            ):
+        if isinstance(self.llvm_type, IntType):
+            if self.value == T_ADD:
                 return builder.add(ls, rs)
 
-            else:
-                return builder.fadd(ls, rs)
-
-        elif self.value == T_SUB:
-            if isinstance(
-                self.llvm_type,
-                IntType
-            ):
+            elif self.value == T_SUB:
                 return builder.sub(ls, rs)
 
-            else:
-                return builder.fsub(ls, rs)
-
-        elif self.value == T_MUL:
-            if isinstance(
-                self.llvm_type,
-                IntType
-            ):
+            elif self.value == T_MUL:
                 return builder.mul(ls, rs)
 
-            else:
-                return builder.fmul(ls, rs)
-
-        elif self.value == T_DIV:
-            if isinstance(
-                self.llvm_type,
-                IntType
-            ):
+            elif self.value == T_DIV:
                 return builder.sdiv(ls, rs)
 
-            else:
-                return builder.fdiv(ls, rs)
-
-        else:
             raise Exception("not a valid operation")
-    
+
+        #these all returns from the function 
+        #if self.llvm_type is not IntType
+        #then it will come here
+
+        if self.value == T_ADD:
+            return builder.fadd(ls, rs)
+
+        elif self.value == T_SUB:
+            return builder.fsub(ls, rs)
+
+        elif self.value == T_MUL:
+            return builder.fmul(ls, rs)
+
+        elif self.value == T_DIV:
+            return builder.fdiv(ls, rs)
+
+        raise Exception("not a valid operation")
+
+
+#this ia same as BinOpNode
+class CompareNode(Node):
+    def __init__(self, value, lhs, rhs):
+        self.value = value
+        self.lhs = lhs
+        self.rhs = rhs
+        self.llvm_type = ""
+        self.mean_type = "" #this will hold the actual difference
+
+    def __repr__(self):
+        return f"CmpNode({self.lhs} {self.value} {self.rhs})"
+
+    def codegen(self, builder):
+        ls = self.lhs.codegen(builder)
+        rs = self.rhs.codegen(builder)
+
+        if self.mean_type not in ("double", "float"):
+
+            if self.value == T_EQS:
+                return builder.icmp_signed('==', ls, rs)
+
+            elif self.value == T_NEQ:
+                return builder.icmp_signed('!=', ls, rs)
+
+            elif self.value == T_LT:
+                return builder.icmp_signed('<', ls, rs)
+
+            elif self.value == T_LTE:
+                return builder.icmp_signed('<=', ls, rs)
+
+            elif self.value == T_GT:
+                return builder.icmp_signed('>', ls, rs)
+
+            elif self.value == T_GTE:
+                return builder.icmp_signed('>=', ls, rs)
+
+            raise Exception("not a valid operation")
+
+
+        if self.value == T_EQS:
+            return builder.fcmp_ordered('==', ls, rs)
+
+        elif self.value == T_NEQ:
+            return builder.fcmp_ordered('!=', ls, rs)
+
+        elif self.value == T_LT:
+            return builder.fcmp_ordered('<', ls, rs)
+
+        elif self.value == T_LTE:
+            return builder.fcmp_ordered('<=', ls, rs)
+
+        elif self.value == T_GT:
+            return builder.fcmp_ordered('>', ls, rs)
+
+        elif self.value == T_GTE:
+            return builder.fcmp_ordered('>=', ls, rs)
+
+        raise Exception("not a valid operation")
+
+
 
 class CastFloToInt(Node):
     def __init__(self, value, casting_type):
@@ -136,7 +187,7 @@ class CastFloToInt(Node):
             self.value.codegen(builder),
             self.type
         )
-    
+
 
     def __repr__(self):
         return f"CastFloToInt({self.value})"
@@ -220,13 +271,13 @@ class VarAssignNode(Node):
 
 
     def codegen(self, builder):
-        
+
         builder.store(
-            self.expr.codegen(builder), 
+            self.expr.codegen(builder),
             self.value,
             align=self.value.align
         )
-        
+
         return None
 
 
@@ -238,7 +289,7 @@ class VarDeclareNode(Node):
 
 
     def codegen(self, builder):
-        
+
         ptr = builder.alloca(
             self.llvm_type,
             name=self.value
@@ -252,7 +303,7 @@ class VarDeclareNode(Node):
         varAssNode = VarAssignNode(ptr, self.expr, "")
 
         varAssNode.codegen(builder)
-        
+
         return True
 
 

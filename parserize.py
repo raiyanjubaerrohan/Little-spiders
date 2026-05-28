@@ -1,5 +1,6 @@
 from nodes import *
 from utils import T_EOS, variables_ptr, T_IDEN, T_EQ
+from utils import T_EQS, T_NEQ, T_LT, T_LTE, T_GT, T_GTE
 from lexical import Token
 
 class Parser:
@@ -25,6 +26,28 @@ class Parser:
         else:
             self.cur_tok = None
 
+    def compare_expr(self):
+        left, err = self.expr()
+
+        if err: return None, err
+
+        while (self.cur_tok != self.EOE
+        and self.cur_tok.type in (
+            T_EQS, T_NEQ, T_LT, T_LTE, T_GT, T_GTE
+        )):
+
+            if self.cur_tok == T_RPAN1:
+                self.next_tok()
+                return left, None
+
+            center = self.cur_tok.type
+            self.next_tok()
+
+            right, err = self.expr()
+            if err: return None, err
+            left = CompareNode(center, left, right)
+
+        return left, None
 
 
     def expr(self):
@@ -38,7 +61,6 @@ class Parser:
             T_ADD, T_SUB, T_MOD, T_RPAN1
         )):
 
-
             if self.cur_tok == T_RPAN1:
                 self.next_tok()
                 return left, None
@@ -48,9 +70,7 @@ class Parser:
             self.next_tok()
 
             right, err = self.term()
-
             if err: return None, err
-
             left = BinOpNode(center, left, right)
 
         return left, None
@@ -106,21 +126,21 @@ class Parser:
 
         elif t == T_LPAN1:
             self.next_tok()
-            return self.expr(), None
+            return self.compare_expr()
 
         elif t == T_LITERAL:
             #a common factor
             self.next_tok()
-        
+
             if t.typer in ("int","float"):
                 return ConstantNode(t.value, t.typer), None
-                
+
             elif t.typer == "bool":
                 return ConstantNode(1 if t.value == "true" else 0, "bool"), None
-                
+
 
         elif t == T_IDEN:
-        
+
             iden = t.value
             self.next_tok()
 
@@ -129,12 +149,12 @@ class Parser:
 
             #else
             if iden in variables_ptr:
-            
+
                 return VarFetchNode(
                     variables_ptr[iden]["value"],
                     variables_ptr[iden]["type"]
                 ), None
-                
+
             else:
                 return None, Exception(f"unknown variable {iden}")
 
@@ -193,7 +213,7 @@ class Parser:
         if self.cur_tok == T_EQ:
             self.next_tok()
 
-            var_expr, err = self.expr()
+            var_expr, err = self.compare_expr()
 
             if var_expr == "needed": return "needed", None
             if err: return None, err
@@ -229,7 +249,7 @@ class Parser:
     def parse_assign(self, iden):
         self.next_tok()
 
-        expression, err = self.expr()
+        expression, err = self.compare_expr()
 
         if expression == "needed": return "needed", None
         if err: return None, err
@@ -262,7 +282,7 @@ class Parser:
         #one step before the original
         #because it will currect itself
         self.next_tok()
-        
+
         if self.cur_tok == None:
             return "needed", None
 
@@ -275,10 +295,10 @@ class Parser:
 
         #calling or assign entry point
         elif self.cur_tok == T_IDEN:
-        
+
             iden_name = self.cur_tok.value
             self.next_tok()
-            
+
             #means this is an assign node
             if self.cur_tok == T_EQ:
                 return self.parse_assign(iden_name)
@@ -286,7 +306,7 @@ class Parser:
             #means this is a call node
             elif self.cur_tok == T_LPAN1:
                 pass
-                
+
 
         return "needed", None
 

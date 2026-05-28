@@ -1,3 +1,1 @@
-let a: bool = true;
-let b = false;
-let dou: double = a + 6;
+let a = (30 > 32) + 4;
