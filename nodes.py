@@ -1,5 +1,6 @@
 from utils import *
 from llvmlite.ir import IntType, FloatType, Constant
+from llvmlite.ir import IRBuilder
 
 #base class
 class Node:
@@ -95,7 +96,7 @@ class BinOpNode(Node):
 
             raise Exception("not a valid operation")
 
-        #these all returns from the function 
+        #these all returns from the function
         #if self.llvm_type is not IntType
         #then it will come here
 
@@ -278,7 +279,7 @@ class VarAssignNode(Node):
             align=self.value.align
         )
 
-        return None
+        return builder
 
 
 class VarDeclareNode(Node):
@@ -304,7 +305,7 @@ class VarDeclareNode(Node):
 
         varAssNode.codegen(builder)
 
-        return True
+        return builder
 
 
     def __repr__(self):
@@ -325,4 +326,49 @@ class VarFetchNode(Node):
     def codegen(self, builder):
         return builder.load(self.value, align=self.value.align)
 
+
+# this starts a new origin
+
+class MyBlock:
+    def __init__(self, stmts: list[Node]):
+        self.stmts = stmts
+
+    def __repr__(self):
+        return f": {self.stmts} end"
+
+    def codegen(self, builder):
+        pass
+
+
+class IfThenBlock(MyBlock):
+    def __init__(self, cond, stmts):
+        self.cond = cond #a node instance
+        self.stmts = stmts # list of nodes
+
+    def __repr__(self):
+        return f"if {self.cond} {super().__repr__()}"
+
+    def codegen(self, builder):
+
+        #building the condition
+        ans = self.cond.codegen(builder)
+
+        #prebuilding branches
+        then_block = builder.append_basic_block()
+        merge_block = builder.append_basic_block()
+
+        # branching with the answer
+        builder.cbranch(ans, then_block, merge_block)
+
+        then_builder = IRBuilder(then_block)
+
+        for stmt in self.stmts:
+            then_builder = stmt.codegen(then_builder)
+
+        then_builder.branch(merge_block)
+
+        return IRBuilder(merge_block)
+
+    #end
+#end
 

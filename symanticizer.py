@@ -250,6 +250,31 @@ class Symantics:
             node.llvm_type = exp_type
 
             return exp_type, PosNode(node)
+
+        elif isinstance(self.cur_node, IfThenBlock):
+            if_block = self.cur_node
+
+            self.cur_node = if_block.cond
+            _, res = self.simanticize("bool")
+
+            if res is not None:
+                if_block.cond = res
+            else: 
+                return 0, None
+            
+            stmts = []
+            
+            for stm in if_block.stmts:
+            
+                self.cur_node = stm
+                _, res = self.simanticize()
+                
+                if res is not None:
+                    stmts.append(res)
+                else:
+                    return 0, None
+
+            return 0, IfThenBlock(if_block.cond, stmts)
         #end
 
         return 0, None

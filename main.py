@@ -72,6 +72,7 @@ while not theEnd:
     while True:
         tlast, err = parser.parse()
         #tlast is Type Less Abstract Syntax Tree
+
         
         if tlast == "needed":
             break
@@ -88,7 +89,7 @@ while not theEnd:
         _, tpast = simantics.simanticize()
 
         if tpast is not None:
-            tpast.codegen(builder)
+            builder = tpast.codegen(builder)
 
 
 f.close()

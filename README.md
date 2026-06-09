@@ -88,3 +88,20 @@ You have to find the way by yourself. I can not help you. Sorry.
 ## Else
 That all we need to get our system set.
 
+# How to *RUN*?
+if you have no errors installing llvmlite then you can just simply
+run it with this bash command.
+```bash
+python main.py example.sp --display-llvm
+```
+
+it should work, but if something fails in the project,
+I request you to report the issue.
+
+and also you can run for help
+```bash
+python main.py -h
+```
+
+enjoy the compiler and it's language.
+

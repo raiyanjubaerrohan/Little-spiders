@@ -37,6 +37,7 @@ ALPHABETS   = ALPHABETS_L + ALPHABETS_U
 
 
 keywords = [
+    "let",
     "int",
     "float",
     "char",
@@ -72,5 +73,16 @@ def getCurrectType(ty) -> str:
 
     #else
     return ""
+
+def cutOut(l:list, start:int, end:int | bool = False):
+
+    if not end: end = len(l) - 1 # the last index
+
+    out = []
+    for i in range(len(l)):
+        if not (i >= start and i <= end):
+            out.append(l[i])
+
+    return out
 
 
