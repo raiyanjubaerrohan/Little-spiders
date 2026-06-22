@@ -77,7 +77,7 @@ pip install llvmlite
 
 # For macOS users
 
-I do not how to install it on macOS. so good luck.
+I do not know how to install it on macOS. so good luck.
 
 ## If it crashes
 I have a limited expirence with llvmlite.

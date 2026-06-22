@@ -223,6 +223,9 @@ class CastIntLow(Node):
             self.type
         )
 
+    def __repr__(self):
+        return f"CastIntLow({self.value} to {self.type})"
+
 
 class CastIntHigh(Node):
     def __init__(self, value, casting_type):
@@ -236,6 +239,9 @@ class CastIntHigh(Node):
             self.type
         )
 
+    def __repr__(self):
+        return f"CastIntHigh({self.value} to {self.type})"
+
 class CastFloLow(Node):
     def __init__(self, value, casting_type):
         self.value = value
@@ -248,6 +254,9 @@ class CastFloLow(Node):
             self.type
         )
 
+    def __repr__(self):
+        return f"CastFloLow({self.value} to {self.type})"
+
 class CastFloHigh(Node):
     def __init__(self, value, casting_type):
         self.value = value
@@ -259,6 +268,10 @@ class CastFloHigh(Node):
             self.value.codegen(builder),
             self.type
         )
+
+    def __repr__(self):
+        return f"CastFloHigh({self.value} to {self.type})"
+
 
 class VarAssignNode(Node):
     def __init__(self, value, expr, type_):

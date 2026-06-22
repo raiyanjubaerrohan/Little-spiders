@@ -13,6 +13,8 @@ class Parser:
         self.cur_pos = 0
         self.node_start = 0
         self.EOE = T_EOS
+        self.cache: list[tuple[int, Node | Block]] = []
+        self.indent = 0
 
 
     def consume(self, tokens:list[Token]):
@@ -304,8 +306,12 @@ class Parser:
 
         if err: return None, err
 
-        if isinstance(cond_expr, BinOpNode):
-            return None, Exception("expected a comparision node but got arithmatic node")
+        if isinstance(cond_expr, (BinOpNode, ConstantNode)):
+            cond_expr = CompareNode(
+                T_GT,
+                cond_expr,
+                ConstantNode(0, "int")
+            )
 
         self.next_tok() #consume the colon
         self.EOE = pre_eoe #back to previous
@@ -317,33 +323,39 @@ class Parser:
         elif self.cur_tok == T_EOF:
             return None, Exception("excepted at least end keyword to close the if block")
 
-        if Token(T_KEY, "end") not in self.tokens: 
-            return "needed", None
-
-        stmts = []
-        self_start_pos = self.node_start #preserving the pointer
+        start_pos = self.node_start #preserving the pointer
         
         while self.cur_tok and self.cur_tok.value != "end":
             res, err = self.router()
 
-            if res == "needed":
-                return None, "something went wrong from if block"
+            if res == "needed": return "needed", None
+            if err: return None, err
 
-            if err:
-                return None, err
+            if self.cur_tok == T_EOF:
+                return None, Exception("excepted at least \"end\" to close the if block")
 
-            stmts.append(res)
+            self.cache.append((self.indent, res))
+
+        if self.cur_tok == None: return "needed", None
+        if self.cur_tok == T_EOF:
+            return None, Exception("excepted at least \"end\" to close the if block")
+
+        if err := self.expect("end", isType=False):
+            return None, err
 
         end_idx = self.cur_pos
-        self.next_tok() # consume the end key
+        self.next_tok() # consume end
 
-        #cutting the last successful node
-        self.tokens = cutOut(self.tokens, self_start_pos, end_idx)
+        # cutting out the successful block
+        self.tokens = cutOut(self.tokens, start_pos, end_idx)
 
-        return IfThenBlock(cond_expr, stmts), None
+        return IfThenBlock(
+            cond_expr,
+            [x[1] for x in self.cache if x[0] == self.indent]
+        ), None
         
 
-    def router(self) -> tuple[Any, Exception]:
+    def router(self) -> tuple[ MyBlock | Node , Exception]:
 
         #the variable declaration part
         if self.cur_tok.value == "let":
@@ -352,8 +364,14 @@ class Parser:
 
         #if block entry point
         elif self.cur_tok.value == "if":
+        
             self.node_start = self.cur_pos
-            return self.parse_if()
+            self.indent += 1
+            
+            res = self.parse_if()
+            self.indent -= 1
+            
+            return res
 
         #calling or assign entry point
         elif self.cur_tok == T_IDEN:

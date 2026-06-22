@@ -37,6 +37,9 @@ ALPHABETS   = ALPHABETS_L + ALPHABETS_U
 
 
 keywords = [
+    "if",
+    "else",
+    "elif",
     "let",
     "int",
     "float",

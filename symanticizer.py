@@ -255,7 +255,7 @@ class Symantics:
             if_block = self.cur_node
 
             self.cur_node = if_block.cond
-            _, res = self.simanticize("bool")
+            _, res = self.simanticize()
 
             if res is not None:
                 if_block.cond = res
