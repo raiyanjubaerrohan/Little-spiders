@@ -1,5 +1,5 @@
 from nodes import *
-from utils import T_EOS, variables_ptr, T_IDEN, T_EQ, cutOut
+from utils import T_EOS, T_IDEN, T_EQ, cutOut
 from utils import T_EQS, T_NEQ, T_LT, T_LTE, T_GT, T_GTE
 from utils import T_KEY
 from lexical import Token
@@ -15,11 +15,15 @@ class Parser:
         self.EOE = T_EOS
         self.cache: list[tuple[int, Node | Block]] = []
         self.indent = 0
+        self.ctx = None
 
 
     def consume(self, tokens:list[Token]):
         for tok in tokens:
             self.tokens.append(tok)
+
+    def set_context(self, ctx):
+        self.ctx = ctx
 
 
     def next_tok(self):
@@ -153,11 +157,11 @@ class Parser:
                 pass #this is a call
 
             #else
-            if iden in variables_ptr:
+            if iden in self.ctx.variables_ptr:
 
                 return VarFetchNode(
-                    variables_ptr[iden]["value"],
-                    variables_ptr[iden]["type"]
+                    self.ctx.variables_ptr[iden]["value"],
+                    self.ctx.variables_ptr[iden]["type"]
                 ), None
 
             else:
@@ -264,12 +268,12 @@ class Parser:
         if err: return None, err
 
         if err := self.expect(T_EOS):
-            return None, ere
+            return None, err
 
         end_idx = self.cur_pos
         self.next_tok() #consume EOS
 
-        if iden in variables_ptr:
+        if iden in self.ctx.variables_ptr:
 
             #cutting the last successful node
             self.tokens = cutOut(self.tokens, self.node_start, end_idx)
@@ -279,13 +283,13 @@ class Parser:
             self.cur_pos = self.node_start
 
             return VarAssignNode(
-                variables_ptr[iden]["value"],
+                self.ctx.variables_ptr[iden]["value"],
                 expression,
-                variables_ptr[iden]["type"]
+                self.ctx.variables_ptr[iden]["type"]
             ), None
 
         #else
-        return None, Exception(f"unknow identifier {iden_name}")
+        return None, Exception(f"unknow identifier {iden}")
 
     def parse_if(self):
         self.next_tok()
@@ -296,16 +300,19 @@ class Parser:
         elif self.cur_tok == T_EOF:
             return None, Exception("expected condition after if")
 
+        print('adjusting the end point')
         #adjusting the end point of expr
         pre_eoe = self.EOE
         self.EOE = T_COLON
+        print('parsing the expr')
         cond_expr, err = self.compare_expr()
 
         if cond_expr == "needed":
             return "needed", None
-
         if err: return None, err
 
+        # adjusting the cond_expr
+        print('converting the node')
         if isinstance(cond_expr, (BinOpNode, ConstantNode)):
             cond_expr = CompareNode(
                 T_GT,
@@ -313,6 +320,7 @@ class Parser:
                 ConstantNode(0, "int")
             )
 
+        print('resetting end point, cmp:', cond_expr)
         self.next_tok() #consume the colon
         self.EOE = pre_eoe #back to previous
 
@@ -324,8 +332,12 @@ class Parser:
             return None, Exception("excepted at least end keyword to close the if block")
 
         start_pos = self.node_start #preserving the pointer
-        
-        while self.cur_tok and self.cur_tok.value != "end":
+
+        print('gathering nodes')
+        while (self.cur_tok 
+        and self.cur_tok.value not in (
+            "end", "elif", "else"
+        )):
             res, err = self.router()
 
             if res == "needed": return "needed", None
@@ -336,24 +348,110 @@ class Parser:
 
             self.cache.append((self.indent, res))
 
-        if self.cur_tok == None: return "needed", None
+        print('cache:', self.cache)
+        
+        if self.cur_tok is None: return "needed", None
         if self.cur_tok == T_EOF:
             return None, Exception("excepted at least \"end\" to close the if block")
 
-        if err := self.expect("end", isType=False):
+        current_block = IfElseBlock(
+            cond_expr,
+            [x[1] for x in self.cache if x[0] == self.indent],
+            DefaultBlock()
+        )
+
+        print('if expr:',current_block)
+
+        # clean up
+        idx = 0
+        while idx < len(self.cache):
+            if self.cache[idx][0] == self.indent:
+                self.cache.pop(idx)
+                continue
+
+            idx += 1
+
+        # cut out
+        self.tokens = cutOut(self.tokens, start_pos, self.cur_pos-1)
+        
+        #branch checking
+        if self.cur_tok.value == "elif":
+            res, err = self.parse_if()
+            if res == "needed": return res, None
+            if err: return None, err
+
+            # return with res
+            current_block.else_block = res
+            return current_block, None
+            
+        elif self.cur_tok.value == "else":
+            self.node_start = self.cur_pos
+            
+            res, err = self.parse_else()
+            if res == "needed": return res, None
+            if err: return None, err
+
+            #returning with res
+            current_block.else_block = res
+            return current_block, None
+
+        # we expect an end key
+        if err := self.expect(('end'), isType=False):
             return None, err
+        
 
         end_idx = self.cur_pos
         self.next_tok() # consume end
 
-        # cutting out the successful block
         self.tokens = cutOut(self.tokens, start_pos, end_idx)
 
-        return IfThenBlock(
-            cond_expr,
+        return current_block, None
+    #end
+
+    def parse_else(self):
+        self.next_tok() #consume else key
+
+        start_pos = self.node_start
+
+        while self.cur_tok and self.cur_tok != "end":
+            res, err = self.router()
+
+            if res == "needed": return res, None
+            if err: return None, err
+
+            if self.cur_tok == T_EOF:
+                return None, Exception("excepted at least \"end\" to close the if block")
+
+            self.cache.append((self.indent, res))
+
+        if self.cur_tok is None: return "needed", None
+        if self.cur_tok == T_EOF:
+            return None, Exception("excepted at least \"end\" to close the if block")
+
+        # we expect an end key
+        if err := self.expect(('end',), isType=False):
+            return None, err
+
+        current_block = ElseBlock(
             [x[1] for x in self.cache if x[0] == self.indent]
-        ), None
+        )
+
+        # clean up
+        idx = 0
+        while idx < len(self.cache):
+            if self.cache[idx][0] == self.indent:
+                self.cache.pop(idx)
+                continue
+
+            idx += 1
+
+        end_pos = self.cur_pos
+        self.next_tok()
         
+        # cut out
+        self.tokens = cutOut(self.tokens, start_pos, end_pos)
+
+        return current_block, None
 
     def router(self) -> tuple[ MyBlock | Node , Exception]:
 

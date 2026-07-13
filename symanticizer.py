@@ -251,7 +251,8 @@ class Symantics:
 
             return exp_type, PosNode(node)
 
-        elif isinstance(self.cur_node, IfThenBlock):
+
+        elif isinstance(self.cur_node, IfElseBlock):
             if_block = self.cur_node
 
             self.cur_node = if_block.cond
@@ -264,7 +265,7 @@ class Symantics:
             
             stmts = []
             
-            for stm in if_block.stmts:
+            for stm in if_block.body:
             
                 self.cur_node = stm
                 _, res = self.simanticize()
@@ -274,11 +275,20 @@ class Symantics:
                 else:
                     return 0, None
 
-            return 0, IfThenBlock(if_block.cond, stmts)
+            self.cur_node = if_block.else_block
+            _, res = self.simanticize()
+
+            if res is not None:
+                return 0, IfElseBlock(if_block.cond, stmts, res)
+
+            # else
+            return 0, None
+
+        elif isinstance(self.cur_node, DefaultBlock):
+            return 0, self.cur_node
+            
         #end
-
         return 0, None
-
 
 
     def align_type(self, lhs, rhs, exp_type):

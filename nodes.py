@@ -9,8 +9,8 @@ class Node:
         self.llvm_type = ""
 
 
-    def codegen(self, builder):
-        return None
+    def codegen(self, ctx) -> Context:
+        return ctx
 
 
     def __eq__(self, other):
@@ -34,8 +34,12 @@ class NegNode(Node):
         self.llvm_type = value.llvm_type
 
 
-    def codegen(self, builder):
-        return builder.neg(self.value.codegen(builder))
+    def codegen(self, ctx) -> Context :
+        ctx.suc_value = ctx.builder.neg(
+            self.value.codegen(ctx).suc_value
+        )
+
+        return ctx
 
     def __repr__(self):
         return f"Neg({self.value})"
@@ -46,15 +50,16 @@ class PosNode(Node):
         self.value = value #the actual value, node
         self.llvm_type = value.llvm_type
 
-    def codegen(self, builder):
-        return self.value
+    def codegen(self, ctx) -> Context:
+        ctx.suc_value = self.value
+        return ctx
 
     def __repr__(self):
         return f"PosNode({self.value})"
 
 
 class ConstantNode(Node):
-    def __init__(self, value, _type = None):
+    def __init__(self, value: int | float , _type = None):
         self.value = value #the constant number
         self.llvm_type = _type #the IR type, a type instance
 
@@ -62,8 +67,10 @@ class ConstantNode(Node):
         return f"Const({self.value}=>{self.llvm_type})"
 
 
-    def codegen(self, builder):
-        return Constant(self.llvm_type, self.value)
+    def codegen(self, ctx) -> Context:
+        ctx.suc_value = Constant(self.llvm_type, self.value)
+
+        return ctx
 
 
 class BinOpNode(Node):
@@ -77,22 +84,26 @@ class BinOpNode(Node):
         return f"BinOp({self.lhs} {self.value} {self.rhs})"
 
 
-    def codegen(self, builder):
-        ls = self.lhs.codegen(builder)
-        rs = self.rhs.codegen(builder)
+    def codegen(self, ctx) -> Context:
+        ls = self.lhs.codegen(ctx).suc_value
+        rs = self.rhs.codegen(ctx).suc_value
 
         if isinstance(self.llvm_type, IntType):
             if self.value == T_ADD:
-                return builder.add(ls, rs)
+                ctx.suc_value = ctx.builder.add(ls, rs)
+                return ctx
 
             elif self.value == T_SUB:
-                return builder.sub(ls, rs)
+                ctx.suc_value = ctx.builder.sub(ls, rs)
+                return ctx
 
             elif self.value == T_MUL:
-                return builder.mul(ls, rs)
+                ctx.suc_value = ctx.builder.mul(ls, rs)
+                return ctx
 
             elif self.value == T_DIV:
-                return builder.sdiv(ls, rs)
+                ctx.suc_value = ctx.builder.sdiv(ls, rs)
+                return ctx
 
             raise Exception("not a valid operation")
 
@@ -101,16 +112,20 @@ class BinOpNode(Node):
         #then it will come here
 
         if self.value == T_ADD:
-            return builder.fadd(ls, rs)
+            ctx.suc_value = ctx.builder.fadd(ls, rs)
+            return ctx
 
         elif self.value == T_SUB:
-            return builder.fsub(ls, rs)
+            ctx.suc_value = ctx.builder.fsub(ls, rs)
+            return ctx
 
         elif self.value == T_MUL:
-            return builder.fmul(ls, rs)
-
+            ctx.suc_value = ctx.builder.fmul(ls, rs)
+            return ctx
+            
         elif self.value == T_DIV:
-            return builder.fdiv(ls, rs)
+            ctx.suc_value = ctx.builder.fdiv(ls, rs)
+            return ctx
 
         raise Exception("not a valid operation")
 
@@ -127,50 +142,62 @@ class CompareNode(Node):
     def __repr__(self):
         return f"CmpNode({self.lhs} {self.value} {self.rhs})"
 
-    def codegen(self, builder):
-        ls = self.lhs.codegen(builder)
-        rs = self.rhs.codegen(builder)
+    def codegen(self, ctx) -> Context:
+        ls = self.lhs.codegen(ctx).suc_value
+        rs = self.rhs.codegen(ctx).suc_value
 
         if self.mean_type not in ("double", "float"):
 
             if self.value == T_EQS:
-                return builder.icmp_signed('==', ls, rs)
+                ctx.suc_value = ctx.builder.icmp_signed('==', ls, rs)
+                return ctx
 
             elif self.value == T_NEQ:
-                return builder.icmp_signed('!=', ls, rs)
+                ctx.suc_value = ctx.builder.icmp_signed('!=', ls, rs)
+                return ctx
 
             elif self.value == T_LT:
-                return builder.icmp_signed('<', ls, rs)
+                ctx.suc_value = ctx.builder.icmp_signed('<', ls, rs)
+                return ctx
 
             elif self.value == T_LTE:
-                return builder.icmp_signed('<=', ls, rs)
+                ctx.suc_value = ctx.builder.icmp_signed('<=', ls, rs)
+                return ctx
 
             elif self.value == T_GT:
-                return builder.icmp_signed('>', ls, rs)
+                ctx.suc_value = ctx.builder.icmp_signed('>', ls, rs)
+                return ctx
 
             elif self.value == T_GTE:
-                return builder.icmp_signed('>=', ls, rs)
+                ctx.suc_value = ctx.builder.icmp_signed('>=', ls, rs)
+                return ctx
 
             raise Exception("not a valid operation")
 
 
         if self.value == T_EQS:
-            return builder.fcmp_ordered('==', ls, rs)
+            ctx.suc_value = ctx.builder.fcmp_ordered('==', ls, rs)
+            return ctx
 
         elif self.value == T_NEQ:
-            return builder.fcmp_ordered('!=', ls, rs)
+            ctx.suc_value = ctx.builder.fcmp_ordered('!=', ls, rs)
+            return ctx
 
         elif self.value == T_LT:
-            return builder.fcmp_ordered('<', ls, rs)
+            ctx.suc_value = ctx.builder.fcmp_ordered('<', ls, rs)
+            return ctx
 
         elif self.value == T_LTE:
-            return builder.fcmp_ordered('<=', ls, rs)
+            ctx.suc_value = ctx.builder.fcmp_ordered('<=', ls, rs)
+            return ctx
 
         elif self.value == T_GT:
-            return builder.fcmp_ordered('>', ls, rs)
+            ctx.suc_value = ctx.builder.fcmp_ordered('>', ls, rs)
+            return ctx
 
         elif self.value == T_GTE:
-            return builder.fcmp_ordered('>=', ls, rs)
+            ctx.suc_value = ctx.builder.fcmp_ordered('>=', ls, rs)
+            return ctx
 
         raise Exception("not a valid operation")
 
@@ -183,11 +210,13 @@ class CastFloToInt(Node):
         self.type = casting_type #the llvm int type, for fexibility
 
 
-    def codegen(self, builder):
-        return builder.fptosi(
-            self.value.codegen(builder),
+    def codegen(self, ctx) -> Context:
+        ctx.suc_value = ctx.builder.fptosi(
+            self.value.codegen(ctx).suc_value,
             self.type
         )
+
+        return ctx
 
 
     def __repr__(self):
@@ -200,11 +229,13 @@ class CastIntToFlo(Node):
         self.llvm_type = getCurrectType(casting_type)
         self.type = casting_type
 
-    def codegen(self, builder):
-        return builder.sitofp(
-            self.value.codegen(builder),
+    def codegen(self, ctx) -> Context:
+        ctx.suc_value = ctx.builder.sitofp(
+            self.value.codegen(ctx).suc_value,
             self.type
         )
+
+        return ctx
 
     def __repr__(self):
         return f"CastIntToFlo({self.value})"
@@ -217,11 +248,13 @@ class CastIntLow(Node):
         self.type = casting_type #the actual llvm type,
         #so we do not have to create more classes
 
-    def codegen(self, builder):
-        return builder.trunc(
-            self.value.codegen(builder),
+    def codegen(self, ctx) -> Context:
+        ctx.suc_value = ctx.builder.trunc(
+            self.value.codegen(ctx).suc_value ,
             self.type
         )
+
+        return ctx
 
     def __repr__(self):
         return f"CastIntLow({self.value} to {self.type})"
@@ -233,11 +266,13 @@ class CastIntHigh(Node):
         self.llvm_type = getCurrectType(casting_type)
         self.type = casting_type
 
-    def codegen(self, builder):
-        return builder.sext(
-            self.value.codegen(builder),
+    def codegen(self, ctx) -> Context:
+        ctx.suc_value = ctx.builder.sext(
+            self.value.codegen(ctx).suc_value ,
             self.type
         )
+
+        return ctx
 
     def __repr__(self):
         return f"CastIntHigh({self.value} to {self.type})"
@@ -248,11 +283,13 @@ class CastFloLow(Node):
         self.llvm_type = getCurrectType(casting_type)
         self.type = casting_type
 
-    def codegen(self, builder):
-        return builder.fptrunc(
-            self.value.codegen(builder),
+    def codegen(self, ctx) -> Context:
+        ctx.suc_value = ctx.builder.fptrunc(
+            self.value.codegen(ctx).suc_value ,
             self.type
         )
+
+        return ctx
 
     def __repr__(self):
         return f"CastFloLow({self.value} to {self.type})"
@@ -263,11 +300,13 @@ class CastFloHigh(Node):
         self.llvm_type = getCurrectType(casting_type)
         self.type = casting_type
 
-    def codegen(self, builder):
-        return builder.fpext(
-            self.value.codegen(builder),
+    def codegen(self, ctx) -> Context :
+        ctx.suc_value = ctx.builder.fpext(
+            self.value.codegen(ctx).suc_value ,
             self.type
         )
+
+        return ctx
 
     def __repr__(self):
         return f"CastFloHigh({self.value} to {self.type})"
@@ -284,15 +323,15 @@ class VarAssignNode(Node):
         return f"VarAssign({self.value} = {self.expr})"
 
 
-    def codegen(self, builder):
+    def codegen(self, ctx) -> Context :
 
-        builder.store(
-            self.expr.codegen(builder),
+        ctx.builder.store(
+            self.expr.codegen(ctx).suc_value ,
             self.value,
             align=self.value.align
         )
 
-        return builder
+        return ctx
 
 
 class VarDeclareNode(Node):
@@ -302,23 +341,23 @@ class VarDeclareNode(Node):
         self.llvm_type = type_ #the type
 
 
-    def codegen(self, builder):
+    def codegen(self, ctx) -> Context:
 
-        ptr = builder.alloca(
+        ptr = ctx.builder.alloca(
             self.llvm_type,
             name=self.value
         )
 
-        variables_ptr[self.value] = {
+        ctx.variables_ptr[self.value] = {
             "type": getCurrectType(self.llvm_type),
             "value": ptr
         }
 
         varAssNode = VarAssignNode(ptr, self.expr, "")
 
-        varAssNode.codegen(builder)
+        ctx = varAssNode.codegen(ctx)
 
-        return builder
+        return ctx
 
 
     def __repr__(self):
@@ -336,52 +375,98 @@ class VarFetchNode(Node):
         return f"VarFetch({self.value})"
 
 
-    def codegen(self, builder):
-        return builder.load(self.value, align=self.value.align)
+    def codegen(self, ctx) -> Context:
+        ctx.suc_value = ctx.builder.load(self.value, align=self.value.align)
+        return ctx
 
 
 # this starts a new origin
-
 class MyBlock:
-    def __init__(self, stmts: list[Node]):
-        self.stmts = stmts
+    def __init__(self): pass
 
     def __repr__(self):
-        return f": {self.stmts} end"
+        return f": {self.body} end"
 
-    def codegen(self, builder):
+    def codegen(self, ctx) -> Context:
         pass
+    
 
-
-class IfThenBlock(MyBlock):
-    def __init__(self, cond, stmts):
-        self.cond = cond #a node instance
-        self.stmts = stmts # list of nodes
+class DefaultBlock(MyBlock):
+    def __init__(self, body: list[Node | DefaultBlock] | None = None):
+        self.body = [] if not body else body
 
     def __repr__(self):
-        return f"if {self.cond} {super().__repr__()}"
+        return f"default : {self.body} end"
 
-    def codegen(self, builder):
+    def codegen(self, ctx) -> Context:
+        ctx.merge_block = ctx.builder.append_basic_block()
+        ctx.builder.branch(ctx.merge_block)
 
-        #building the condition
-        ans = self.cond.codegen(builder)
+        #replace the builder
+        ctx.builder = IRBuilder(ctx.merge_block)
+        
+        return ctx
 
-        #prebuilding branches
-        then_block = builder.append_basic_block()
-        merge_block = builder.append_basic_block()
 
-        # branching with the answer
-        builder.cbranch(ans, then_block, merge_block)
+class IfElseBlock(MyBlock):
+    def __init__(self, cond, body, else_block : DefaultBlock):
+        self.cond = cond #a node instance
+        self.body = body # list of nodes
+        self.else_block = else_block
 
+    def __repr__(self):
+        return f"if {self.cond}: {self.body} {self.else_block}"
+
+    def codegen(self, ctx) -> Context:
+
+        # adding nessesary blocks
+        then_block = ctx.builder.append_basic_block()
+        else_block = ctx.builder.append_basic_block()
+
+        # evaluate condition
+        ans = self.cond.codegen(ctx).suc_value
+
+        ctx.builder.cbranch(ans, then_block, else_block)
+
+        # replacing builder
+        # building then body
         then_builder = IRBuilder(then_block)
+        ctx.builder = then_builder
 
-        for stmt in self.stmts:
-            then_builder = stmt.codegen(then_builder)
+        for stmt in self.body:
+            ctx = stmt.codegen(ctx)
 
-        then_builder.branch(merge_block)
+        # replace the builder for else
+        ctx.builder = IRBuilder(else_block)
 
-        return IRBuilder(merge_block)
+        ctx = self.else_block.codegen(ctx)
+
+        # then jump to merge block
+        then_builder.branch(ctx.merge_block)
+
+        return ctx
 
     #end
 #end
 
+class ElseBlock(MyBlock):
+    def __init__(self, body: list[Node | DefaultBlock]):
+        self.body = body
+
+    def codegen(self, ctx) -> Context:
+
+        ctx.merge_block = ctx.builder.append_basic_block()
+
+        for stmt in self.body:
+            ctx = stmt.codegen(ctx)
+
+        # branch
+        ctx.builder.branch(ctx.merge_block)
+
+        #replace the builder
+        ctx.builder = IRBuilder(ctx.merge_block)
+        
+        return ctx
+
+    def __repr__(self):
+        return f"else: {super().__repr__()}"
