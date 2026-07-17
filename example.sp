@@ -4,7 +4,7 @@ let b:int;
 
 if a >= 0:
 	a = 20;
-else:
-	a = 40;
+elif b:
+	a = 30 + 3*4;
 end
 

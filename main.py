@@ -31,7 +31,6 @@ argParser.add_argument(
 args = argParser.parse_args()
 
 #complete set
-lexer = Lexer()
 parser = Parser()
 simantics = Symantics()
 
@@ -57,57 +56,39 @@ ctx.builder = ir.IRBuilder(
     mainfunc.append_basic_block(name="entry")
 )
 
-# set up the context for parser
-parser.set_context(ctx)
-
 if not args.file:
     print("error: no file input")
     exit(0)
 
 err_msg = "compile time error : {0}"
-
 f = open(args.file, "r")
-
 theEnd = False
 
+# set the context for the parser
+parser.set_context(ctx, f)
 
 while not theEnd:
-    line = f.readline()
 
-    if line == "":
-        tokens = [Token(T_EOF, Position(0,0))]
-        err = None
-    else:
-        tokens, err = lexer.lex(line)
+    tlast, err = parser.parse()
 
-    if err: 
-        print(err_msg.format(err))
-        exit(0)
 
-    parser.consume(tokens)
-
-    while True:
-        tlast, err = parser.parse()
-        #tlast is Type Less Abstract Syntax Tree
-
-        
-        if tlast == "needed":
-            break
-
-        elif tlast == "theend":
-            theEnd = True
-            break
-                
-        elif err:
+    if tlast == "theend":
+        theEnd = True
+        if err:
             print(err_msg.format(err))
-            exit(0)
+            exit(1)
+        break
+                
+    elif err:
+        print(err_msg.format(err))
+        exit(1)
 
-        print(tlast)
-        simantics.load(tlast)
-        _, tpast = simantics.simanticize()
+    print(tlast)
+    simantics.load(tlast)
+    _, tpast = simantics.simanticize()
 
-        if tpast is not None:
-            ctx = tpast.codegen(ctx)
+    if tpast is not None:
+        ctx = tpast.codegen(ctx)
 
 
 f.close()

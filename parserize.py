@@ -1,7 +1,8 @@
 from nodes import *
+from lexical import *
 from utils import T_EOS, T_IDEN, T_EQ, cutOut
 from utils import T_EQS, T_NEQ, T_LT, T_LTE, T_GT, T_GTE
-from utils import T_KEY
+from utils import T_KEY, Position
 from lexical import Token
 from typing import Any
 
@@ -13,31 +14,64 @@ class Parser:
         self.cur_pos = 0
         self.node_start = 0
         self.EOE = T_EOS
-        self.cache: list[tuple[int, Node | Block]] = []
+        self.cache: list[tuple[int, Node | MyBlock]] = []
         self.indent = 0
+        self.lexer = Lexer()
         self.ctx = None
+        self.file = None
 
 
-    def consume(self, tokens:list[Token]):
+    def append(self, tok) -> Exception | None:
+        self.tokens.append(tok)
+
+    
+    def consume(self) -> Exception | None:
+
+        line = self.file.readline()
+
+        if line == '':
+            tokens = [Token(T_EOF, Position(0,0))]
+
+        elif line == '\n':
+            return self.consume()
+
+        else:
+            tokens, err = self.lexer.lex(line)
+            if err: return err
+        
         for tok in tokens:
             self.tokens.append(tok)
 
-    def set_context(self, ctx):
+        return None
+
+
+    def set_context(self, ctx, file):
         self.ctx = ctx
+        self.file = file
 
 
-    def next_tok(self):
+    def next_tok(self) -> tuple[bool, Exception | None]:
         self.cur_pos += 1
 
         if len(self.tokens) > self.cur_pos:
             self.cur_tok = self.tokens[self.cur_pos]
-
         else:
-            self.cur_tok = None
+            # self.cur_tok = None
+            if err := self.consume():
+                return False, err
 
-    def compare_expr(self):
+            self.cur_tok = self.tokens[self.cur_pos]
+
+        if self.cur_tok == T_EOF:
+            return True, None
+        else: 
+            return False, None
+        
+
+    def compare_expr(self) -> tuple[Node | None, Exception | None]:
         left, err = self.expr()
 
+        if left == "theend": return left, err
         if err: return None, err
 
         while (self.cur_tok != self.EOE
@@ -46,23 +80,37 @@ class Parser:
         )):
 
             if self.cur_tok == T_RPAN1:
-                self.next_tok()
+
+                eof, err = self.next_tok()
+                if eof:
+                    return "theend", Exception("expected more tokens")
+                elif err:
+                    return None, err
+                
                 return left, None
 
             center = self.cur_tok.type
-            self.next_tok()
+            eof, err = self.next_tok()
+
+            if eof:
+                return "theend", Exception("expected more tokens")
+            elif err:
+                return None, err
 
             right, err = self.expr()
+
+            if right == 'theend': return res, err
             if err: return None, err
             left = CompareNode(center, left, right)
 
         return left, None
 
 
-    def expr(self):
+    def expr(self) -> tuple[Node | None, Exception | None]:
 
         left, err = self.term()
 
+        if left == 'theend': return left, err
         if err: return None, err
 
         while (self.cur_tok != self.EOE
@@ -71,24 +119,38 @@ class Parser:
         )):
 
             if self.cur_tok == T_RPAN1:
-                self.next_tok()
+                eof, err = self.next_tok()
+
+                if eof:
+                    return "theend", Exception("expected more tokens")
+                elif err:
+                    return None, err
+                    
                 return left, None
 
 
             center = self.cur_tok.type
-            self.next_tok()
+
+            eof, err = self.next_tok()
+            if eof:
+                return "theend", Exception("expected more tokens")
+            elif err:
+                return None, err
 
             right, err = self.term()
+
+            if right == "theend": return right, err
             if err: return None, err
             left = BinOpNode(center, left, right)
 
         return left, None
 
 
-    def term(self):
+    def term(self) -> tuple[Node | None, Exception | None]:
 
         left, err = self.factor()
 
+        if left == 'theend': return left, err
         if err: return None, err
 
         while (self.cur_tok != self.EOE
@@ -96,35 +158,43 @@ class Parser:
             T_MUL, T_DIV, T_RPAN1
         )):
 
-
             if self.cur_tok == T_RPAN1:
                 return left, None
 
-
             center = self.cur_tok.type
-            self.next_tok()
+            eof, err = self.next_tok()
+
+            if eof:
+                return "theend", Exception("expected more tokens")
+            elif err:
+                return None, err
 
             right, err = self.factor()
 
+            if right == 'theend': return right, err
             if err: return None, err
-
             left = BinOpNode(center, left, right)
 
         return left, None
 
 
-    def factor(self):
+    def factor(self) -> tuple[Node | None, Exception | None]:
+
         t = self.cur_tok
 
-        if t == T_EOS or (not isinstance(t, Token)):
-            return "needed", Exception("expected more tokens")
-
         if t.type in (T_ADD, T_SUB):
-            self.next_tok()
+
+            eof, err = self.next_tok()
+
+            if eof:
+                return "theend", Exception("expected more tokens")
+            elif err:
+                return None, err
+            
             res, err = self.factor()
 
-            if err:
-                return None, err
+            if res == 'theend': return res, err
+            if err:return None, err
 
             if t == T_SUB:
                 return NegNode(res),None
@@ -134,12 +204,23 @@ class Parser:
 
 
         elif t == T_LPAN1:
-            self.next_tok()
+            eof, err = self.next_tok()
+
+            if eof:
+                return "theend", Exception("expected more tokens")
+            elif err:
+                return None, err
+            
             return self.compare_expr()
 
         elif t == T_LITERAL:
             #a common factor
-            self.next_tok()
+            eof, err = self.next_tok()
+
+            if eof:
+                return "theend", Exception("expected more tokens")
+            elif err:
+                return None, err
 
             if t.typer in ("int","float"):
                 return ConstantNode(t.value, t.typer), None
@@ -151,7 +232,13 @@ class Parser:
         elif t == T_IDEN:
 
             iden = t.value
-            self.next_tok()
+            eof, err = self.next_tok()
+
+            if eof:
+                return "theend", Exception("expected more tokens")
+
+            elif err:
+                return None, err
 
             if self.cur_tok == T_LPAN1:
                 pass #this is a call
@@ -172,28 +259,25 @@ class Parser:
 
 
 
-    def expect(self, *v, isType = True):
+    def expect(self, *v, isType = True) -> Exception | None:
 
         if isType:
             if not self.cur_tok.type in v:
-                return Exception(
-                    f"expected {v}"
-                )
-
+                return Exception(f"expected {v} as type")
         else:
             if not self.cur_tok.value in v:
-                return Exception(
-                    f"expected {v} as value"
-                )
-
+                return Exception(f"expected {v} as value")
         return None
+        
 
-    def parse_var(self):
+    def parse_var(self) -> tuple[Node | None, Exception | None]:
 
-        self.next_tok()
+        eof, err = self.next_tok()
 
-        if self.cur_tok == None and self.cur_tok != T_EOS:
-            return "needed", None
+        if eof:
+            return "theend", Exception("expected more tokens")
+        elif err:
+            return None, err            
 
         if err := self.expect(T_IDEN):
             return None, err
@@ -202,13 +286,21 @@ class Parser:
         var_type = 0
         var_expr = 0
 
-        self.next_tok()
+        eof, err = self.next_tok()
+
+        if eof:
+            return "theend", Exception("expected more tokens")
+        elif err:
+            return None, err
 
         if self.cur_tok == T_COLON:
-            self.next_tok()
+        
+            eof, err = self.next_tok()
 
-            if self.cur_tok == None and self.cur_tok != T_EOS:
-                return "needed", None
+            if eof:
+                return "theend", Exception("expected more tokens")
+            elif err:
+                return None, err
 
             if err := self.expect(
                 "int", "char", "short", "bool", #integer types
@@ -217,25 +309,37 @@ class Parser:
             ): return None, err
 
             var_type = self.cur_tok.value
-            self.next_tok()
+            eof, err = self.next_tok()
+
+            if eof:
+                return "theend", Exception("expected more tokens")
+            elif err: 
+                return None, err
 
         if self.cur_tok == T_EQ:
-            self.next_tok()
+            eof, err = self.next_tok()
+
+            if eof:
+                return "theend", Exception("expected more tokens")
+            elif err:
+                return None, err
 
             var_expr, err = self.compare_expr()
 
-            if var_expr == "needed": return "needed", None
+            if var_expr == 'theend': return var_expr, err
             if err: return None, err
-
-        if self.cur_tok == None and self.cur_tok != T_EOS:
-            return "needed", None
 
         if err := self.expect(T_EOS):
             return None, err
 
+
         end_idx = self.cur_pos
-        self.next_tok() #consume EOS
-        
+        eof, err = self.next_tok() #consume EOS
+
+        if eof:
+            return "theend", None
+        elif err:
+            return None, err        
 
         if (not var_expr) and (not var_type):
             return None, Exception(f"excepted a type or a default value, {var_name}")
@@ -253,25 +357,36 @@ class Parser:
         #cutting the privious successful node
         self.tokens = cutOut(self.tokens, self.node_start, end_idx)
         #from current index to the end
-
         self.cur_pos = self.node_start
 
         return varDecNode, None
 
 
     def parse_assign(self, iden):
-        self.next_tok()
+
+        eof, err = self.next_tok()
+
+        if eof:
+            return "theend", Exception("expected more tokens")
+
+        elif err:
+            return None, err
 
         expression, err = self.compare_expr()
 
-        if expression == "needed": return "needed", None
+        if expression == 'theend': return expression, err
         if err: return None, err
 
         if err := self.expect(T_EOS):
             return None, err
 
         end_idx = self.cur_pos
-        self.next_tok() #consume EOS
+        eof, err = self.next_tok() #consume EOS
+
+        if eof:
+            return "theend", None
+        elif err:
+            return None, err
 
         if iden in self.ctx.variables_ptr:
 
@@ -292,65 +407,56 @@ class Parser:
         return None, Exception(f"unknow identifier {iden}")
 
     def parse_if(self):
-        self.next_tok()
+    
+        eof, err = self.next_tok()
+        
+        if eof:
+            return "theend", Exception("expected condition after if")
 
-        if self.cur_tok == None:
-            return "needed", None
+        elif err:
+            return None, err
 
-        elif self.cur_tok == T_EOF:
-            return None, Exception("expected condition after if")
-
-        print('adjusting the end point')
         #adjusting the end point of expr
         pre_eoe = self.EOE
         self.EOE = T_COLON
-        print('parsing the expr')
+
+        start_pos = self.node_start
+        
         cond_expr, err = self.compare_expr()
 
-        if cond_expr == "needed":
-            return "needed", None
+        if cond_expr == 'theend': return cond_expr, err
         if err: return None, err
 
         # adjusting the cond_expr
-        print('converting the node')
-        if isinstance(cond_expr, (BinOpNode, ConstantNode)):
+        if isinstance(cond_expr, (BinOpNode, ConstantNode, VarFetchNode)):
             cond_expr = CompareNode(
                 T_GT,
                 cond_expr,
                 ConstantNode(0, "int")
             )
 
-        print('resetting end point, cmp:', cond_expr)
-        self.next_tok() #consume the colon
+        eof, err = self.next_tok()
+        
+        if eof:
+            return "theend" , Exception("excepted at least end keyword to close the if block")
+
+        elif err:
+            return None, err
+
         self.EOE = pre_eoe #back to previous
 
-        #check for need
-        if self.cur_tok == None:
-            return "needed", None
-
-        elif self.cur_tok == T_EOF:
-            return None, Exception("excepted at least end keyword to close the if block")
-
-        start_pos = self.node_start #preserving the pointer
-
-        print('gathering nodes')
-        while (self.cur_tok 
-        and self.cur_tok.value not in (
+        while self.cur_tok.value not in (
             "end", "elif", "else"
-        )):
+        ):
             res, err = self.router()
 
-            if res == "needed": return "needed", None
-            if err: return None, err
-
-            if self.cur_tok == T_EOF:
-                return None, Exception("excepted at least \"end\" to close the if block")
+            if res == 'theend':
+                return res, err
+            elif err: 
+                return None, err
 
             self.cache.append((self.indent, res))
 
-        print('cache:', self.cache)
-        
-        if self.cur_tok is None: return "needed", None
         if self.cur_tok == T_EOF:
             return None, Exception("excepted at least \"end\" to close the if block")
 
@@ -359,8 +465,6 @@ class Parser:
             [x[1] for x in self.cache if x[0] == self.indent],
             DefaultBlock()
         )
-
-        print('if expr:',current_block)
 
         # clean up
         idx = 0
@@ -373,11 +477,15 @@ class Parser:
 
         # cut out
         self.tokens = cutOut(self.tokens, start_pos, self.cur_pos-1)
+        # fix the position pointer
+        self.cur_pos = start_pos
         
         #branch checking
         if self.cur_tok.value == "elif":
+            self.node_start = self.cur_pos
+            
             res, err = self.parse_if()
-            if res == "needed": return res, None
+            if res == "theend": return res, err
             if err: return None, err
 
             # return with res
@@ -388,7 +496,7 @@ class Parser:
             self.node_start = self.cur_pos
             
             res, err = self.parse_else()
-            if res == "needed": return res, None
+            if res == "theend": return res, None
             if err: return None, err
 
             #returning with res
@@ -396,40 +504,57 @@ class Parser:
             return current_block, None
 
         # we expect an end key
-        if err := self.expect(('end'), isType=False):
+        if err := self.expect('end', isType=False):
             return None, err
         
-
         end_idx = self.cur_pos
-        self.next_tok() # consume end
+        eof, err = self.next_tok() # consume end
+
+        if err:
+            return None, err
 
         self.tokens = cutOut(self.tokens, start_pos, end_idx)
+        # fixing the pointer
+        self.cur_pos = start_pos
 
         return current_block, None
     #end
 
     def parse_else(self):
-        self.next_tok() #consume else key
+
+        eof, err = self.next_tok() #consume else key
+
+        if eof:
+            return "theend", Exception("expected more tokens")
+        elif err:
+            return None, err
+
+        if err := self.expect(T_COLON):
+            return None, err
+
+        eof, err = self.next_tok() # consume the colon
+
+        if eof:
+            return 'theend', Exception("expected more tokens")
+
+        elif err:
+            return None, err
 
         start_pos = self.node_start
 
-        while self.cur_tok and self.cur_tok != "end":
+        while self.cur_tok.value != "end":
             res, err = self.router()
 
-            if res == "needed": return res, None
-            if err: return None, err
+            if res == 'theend': 
+                return res, Exception("excepted at least \"end\" to close the if block")
 
-            if self.cur_tok == T_EOF:
-                return None, Exception("excepted at least \"end\" to close the if block")
+            elif err: 
+                return None, err
 
             self.cache.append((self.indent, res))
 
-        if self.cur_tok is None: return "needed", None
-        if self.cur_tok == T_EOF:
-            return None, Exception("excepted at least \"end\" to close the if block")
-
         # we expect an end key
-        if err := self.expect(('end',), isType=False):
+        if err := self.expect('end', isType=False):
             return None, err
 
         current_block = ElseBlock(
@@ -446,10 +571,14 @@ class Parser:
             idx += 1
 
         end_pos = self.cur_pos
-        self.next_tok()
-        
+        eof, err = self.next_tok() # consume the end key
+
+        if err:
+            return None, err
+
         # cut out
         self.tokens = cutOut(self.tokens, start_pos, end_pos)
+        self.cur_pos = start_pos
 
         return current_block, None
 
@@ -468,7 +597,7 @@ class Parser:
             
             res = self.parse_if()
             self.indent -= 1
-            
+
             return res
 
         #calling or assign entry point
@@ -476,13 +605,12 @@ class Parser:
 
             iden_name = self.cur_tok.value
             self.node_start = self.cur_pos
-            self.next_tok()
+            eof, err = self.next_tok()
 
-            if self.cur_tok == None:
-                return "needed", None
-
-            elif self.cur_tok == T_EOF:
-                return None, Exception(f"excepted more tokens after {iden_name}")
+            if eof:
+                return "theend", Exception(f"excepted more tokens after {iden_name}")
+            elif err:
+                return None, err
 
             #means this is a assign node
             if self.cur_tok == T_EQ:
@@ -492,24 +620,24 @@ class Parser:
             elif self.cur_tok == T_LPAN1:
                 pass
 
-        return "needed", None
+        return "theend", None
 
 
-    def parse(self) -> tuple[Any, Exception]:
+    def parse(self) -> tuple[Node | None, Exception | None]:
 
+        if err := self.consume():
+            return None, err
 
         self.cur_pos = -1
         #one step before the original
         #because it will currect itself
-        self.next_tok()
+        eof, err = self.next_tok()
 
-        if self.cur_tok == None:
-            return "needed", None
+        if eof:
+            return "theend", None
+        elif err:
+            return None, err
 
-        elif self.cur_tok == T_EOF:
-            return "theend", None #end point
-
-        
         return self.router()
 
     #end function

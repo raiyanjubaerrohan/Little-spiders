@@ -284,6 +284,23 @@ class Symantics:
             # else
             return 0, None
 
+        elif isinstance(self.cur_node, ElseBlock):
+            else_block = self.cur_node
+
+            stmts = []
+
+            for stm in else_block.body:
+
+                self.cur_node = stm
+                _, res = self.simanticize()
+
+                if res is not None:
+                    stmts.append(res)
+                else:
+                    return 0, None
+
+            return 0, ElseBlock(stmts)
+
         elif isinstance(self.cur_node, DefaultBlock):
             return 0, self.cur_node
             
