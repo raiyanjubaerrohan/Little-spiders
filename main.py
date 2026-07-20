@@ -83,7 +83,6 @@ while not theEnd:
         print(err_msg.format(err))
         exit(1)
 
-    print(tlast)
     simantics.load(tlast)
     _, tpast = simantics.simanticize()
 

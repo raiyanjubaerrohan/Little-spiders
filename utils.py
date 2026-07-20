@@ -77,10 +77,13 @@ def getCurrectType(ty) -> str:
 
 def cutOut(l:list, start:int, end:int | bool = False):
 
-    if not end: end = len(l) - 1 # the last index
+    if not end and isinstance(end, bool): end = len(l) - 1 # the last index
 
     out = []
+    
     for i in range(len(l)):
+
+        # if not in range
         if not (i >= start and i <= end):
             out.append(l[i])
 

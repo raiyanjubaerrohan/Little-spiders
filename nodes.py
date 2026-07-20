@@ -430,11 +430,12 @@ class IfElseBlock(MyBlock):
 
         # replacing builder
         # building then body
-        then_builder = IRBuilder(then_block)
-        ctx.builder = then_builder
+        ctx.builder = IRBuilder(then_block)
 
         for stmt in self.body:
             ctx = stmt.codegen(ctx)
+
+        then_builder = ctx.builder # preserving the builder
 
         # replace the builder for else
         ctx.builder = IRBuilder(else_block)

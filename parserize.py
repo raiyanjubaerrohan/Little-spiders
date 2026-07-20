@@ -19,6 +19,7 @@ class Parser:
         self.lexer = Lexer()
         self.ctx = None
         self.file = None
+        self.have_read = False
 
 
     def append(self, tok) -> Exception | None:
@@ -27,17 +28,14 @@ class Parser:
     
     def consume(self) -> Exception | None:
 
-        line = self.file.readline()
+        if self.have_read: return None
 
-        if line == '':
-            tokens = [Token(T_EOF, Position(0,0))]
+        line = self.file.read()
 
-        elif line == '\n':
-            return self.consume()
+        tokens, err = self.lexer.lex(line)
+        if err: return err
 
-        else:
-            tokens, err = self.lexer.lex(line)
-            if err: return err
+        tokens.append(Token(T_EOF, Position(0,0)))
         
         for tok in tokens:
             self.tokens.append(tok)
@@ -336,9 +334,7 @@ class Parser:
         end_idx = self.cur_pos
         eof, err = self.next_tok() #consume EOS
 
-        if eof:
-            return "theend", None
-        elif err:
+        if err:
             return None, err        
 
         if (not var_expr) and (not var_type):
@@ -513,9 +509,9 @@ class Parser:
         if err:
             return None, err
 
-        self.tokens = cutOut(self.tokens, start_pos, end_idx)
+        self.tokens = cutOut(self.tokens, end_idx, end_idx)
         # fixing the pointer
-        self.cur_pos = start_pos
+        self.cur_pos = end_idx
 
         return current_block, None
     #end
@@ -583,7 +579,7 @@ class Parser:
         return current_block, None
 
     def router(self) -> tuple[ MyBlock | Node , Exception]:
-
+    
         #the variable declaration part
         if self.cur_tok.value == "let":
             self.node_start = self.cur_pos
