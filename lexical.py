@@ -40,7 +40,7 @@ class Lexer:
 
         #end
 
-    def lex(self, text: str):
+    def lex(self, text: str) -> tuple[list[Token] | None, Exception | None]:
     
         tokens: list[Token] = []
         self.text = text

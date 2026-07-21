@@ -382,7 +382,8 @@ class VarFetchNode(Node):
 
 # this starts a new origin
 class MyBlock:
-    def __init__(self): pass
+    def __init__(self):
+        self.body = []
 
     def __repr__(self):
         return f": {self.body} end"

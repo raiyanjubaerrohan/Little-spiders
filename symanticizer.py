@@ -239,7 +239,7 @@ class Symantics:
             node = self.cur_node
             self.cur_node = node.value
             exp_type, node = self.simanticize(exp_type)
-            node.llvm_type = exp_type
+            node.llvm_type = self.get_currect_type(exp_type)
 
             return exp_type, NegNode(node)
 
@@ -247,7 +247,7 @@ class Symantics:
             node = self.cur_node
             self.cur_node = node.value
             exp_type, node = self.simanticize(exp_type)
-            node.llvm_type = exp_type
+            node.llvm_type = self.get_currect_type(exp_type)
 
             return exp_type, PosNode(node)
 
@@ -307,6 +307,23 @@ class Symantics:
         #end
         return 0, None
 
+    def get_currect_type(self, exp_type):
+        if exp_type == "int":
+            return IntType(32)
+        elif exp_type == "short":
+            return IntType(16)
+        elif exp_type == "char":
+            return IntType(8)
+        elif exp_type == "bool":
+            return IntType(1)
+
+        elif exp_type == "double":
+            return DoubleType()
+        elif exp_type == "float":
+            return FloatType()
+
+        else:
+            raise Exception("no type matched")
 
     def align_type(self, lhs, rhs, exp_type):
         if exp_type:

@@ -97,7 +97,7 @@ class Parser:
 
             right, err = self.expr()
 
-            if right == 'theend': return res, err
+            if right == 'theend': return right, err
             if err: return None, err
             left = CompareNode(center, left, right)
 
