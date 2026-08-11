@@ -1,10 +1,45 @@
-from nodes import *
-from lexical import *
-from utils import T_EOS, T_IDEN, T_EQ, cutOut
-from utils import T_EQS, T_NEQ, T_LT, T_LTE, T_GT, T_GTE
-from utils import T_KEY, Position
-from lexical import Token
-from typing import Any
+from nodes import (
+    Node,
+    MyBlock,
+    ConstantNode,
+    CompareNode,
+    BinOpNode,
+    NegNode,
+    PosNode,
+    StringNode,
+    VarFetchNode,
+    VarAssignNode,
+    VarDeclareNode,
+    IfElseBlock,
+    DefaultBlock,
+    ElseBlock,
+)
+
+from utils import (
+    T_EOS, 
+    T_IDEN,
+    T_EQ,
+    cutOut,
+    T_EQS,
+    T_NEQ,
+    T_LT,
+    T_LTE,
+    T_GT,
+    T_GTE,
+    T_EOF,
+    T_RPAN1,
+    T_LPAN1,
+    T_LITERAL,
+    T_COLON,
+    T_ADD,
+    T_SUB,
+    T_MUL,
+    T_DIV,
+    T_MOD,
+    Position,
+)
+
+from lexical import Token, Lexer
 
 class Parser:
 
@@ -19,23 +54,20 @@ class Parser:
         self.lexer = Lexer()
         self.ctx = None
         self.file = None
-        self.have_read = False
-
 
     def append(self, tok) -> Exception | None:
         self.tokens.append(tok)
 
     
     def consume(self) -> Exception | None:
-
-        if self.have_read: return None
-
         line = self.file.read()
 
-        tokens, err = self.lexer.lex(line)
-        if err: return err
+        if line == "":
+            tokens = [Token(T_EOF, Position(0,0))]
 
-        tokens.append(Token(T_EOF, Position(0,0)))
+        else:
+            tokens, err = self.lexer.lex(line)
+            if err: return err
         
         for tok in tokens:
             self.tokens.append(tok)
@@ -223,9 +255,11 @@ class Parser:
             if t.typer in ("int","float"):
                 return ConstantNode(t.value, t.typer), None
 
+            if t.typer == "string":
+                return StringNode(t.value), None
+
             elif t.typer == "bool":
                 return ConstantNode(1 if t.value == "true" else 0, "bool"), None
-
 
         elif t == T_IDEN:
 
@@ -303,6 +337,7 @@ class Parser:
             if err := self.expect(
                 "int", "char", "short", "bool", #integer types
                 "float", "double", #floating point types
+                "string", # fancy name for charptr
                 isType=False
             ): return None, err
 
@@ -612,11 +647,7 @@ class Parser:
             if self.cur_tok == T_EQ:
                 return self.parse_assign(iden_name)
 
-            #this is a call node
-            elif self.cur_tok == T_LPAN1:
-                pass
-
-        return "theend", None
+        return self.compare_expr()
 
 
     def parse(self) -> tuple[Node | None, Exception | None]:

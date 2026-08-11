@@ -1,7 +1,6 @@
-from lexical import *
-from parserize import *
-from symanticizer import *
-from utils import T_EOF, Context
+from parserize import Parser
+from symanticizer import Symantics
+from utils import Context
 import argparse
 
 from llvmlite import ir
@@ -55,6 +54,7 @@ ctx = Context()
 ctx.builder = ir.IRBuilder(
     mainfunc.append_basic_block(name="entry")
 )
+ctx.module = module
 
 if not args.file:
     print("error: no file input")
@@ -71,7 +71,6 @@ while not theEnd:
 
     tlast, err = parser.parse()
 
-
     if tlast == "theend":
         theEnd = True
         if err:
@@ -85,7 +84,7 @@ while not theEnd:
 
     simantics.load(tlast)
     _, tpast = simantics.simanticize()
-
+    
     if tpast is not None:
         ctx = tpast.codegen(ctx)
 

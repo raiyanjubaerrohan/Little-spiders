@@ -1,5 +1,4 @@
 from llvmlite.ir import IntType, HalfType, FloatType, DoubleType
-from llvmlite.ir import IRBuilder
 
 T_ADD       = "ADD"
 T_SUB       = "SUB"
@@ -89,20 +88,22 @@ def cutOut(l:list, start:int, end:int | bool = False):
 
     return out
 
+def name_generator():
+    n = 0
+    while True:
+        yield "stringno"+str(n)
+        n += 1
+
 class Position:
-	def __init__(self, start_pos: int = 0, end_pos: int = 1):
-		self.start_pos = start_pos
-		self.end_pos = end_pos
-		
-	def set_start(self, st) -> None:
-		self.start_pos = st
-		
-	def set_end(self, ed) -> None:
-		self.end_pos = ed
+    def __init__(self, start_pos: int = 0, end_pos: int = 1):
+        self.start_pos = start_pos
+        self.end_pos = end_pos
 
 class Context:
     def __init__(self):
         self.builder = None
         self.merge_block = None
         self.variables_ptr = {}
+        self.module = None
+        self.suc_value = None
         # will be added later on

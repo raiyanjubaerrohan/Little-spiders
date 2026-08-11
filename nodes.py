@@ -1,6 +1,12 @@
 from utils import *
-from llvmlite.ir import IntType, FloatType, Constant
-from llvmlite.ir import IRBuilder
+from llvmlite.ir import (
+    IntType,
+    FloatType,
+    Constant,
+    ArrayType,
+    IRBuilder, 
+    GlobalVariable,
+)
 
 #base class
 class Node:
@@ -72,6 +78,31 @@ class ConstantNode(Node):
 
         return ctx
 
+class StringNode(Node):
+    def __init__(self, value):
+        self.value = value
+        self.llvm_type = "string"
+
+    def __repr__(self):
+        return f"Str({self.value})"
+
+    def codegen(self, ctx: Context) -> Context:
+        self.value += '\0'
+        #ensuring the null terminator
+
+        zero = Constant(IntType(32), 0)
+        
+        str_name = name_generator()
+        str_type = ArrayType(IntType(8), len(self.value))
+        global_str = GlobalVariable(ctx.module, str_type,  next(str_name))
+
+        global_str.global_constant = True
+        global_str.initializer = Constant(str_type, bytearray(self.value, "utf-8"))
+        
+        global_str.linkage = 'private'
+        ctx.suc_value = ctx.builder.gep(global_str, [zero, zero])
+
+        return ctx
 
 class BinOpNode(Node):
     def __init__(self, value, lhs, rhs):
@@ -325,8 +356,8 @@ class VarAssignNode(Node):
 
     def codegen(self, ctx) -> Context :
 
-        ctx.builder.store(
-            self.expr.codegen(ctx).suc_value ,
+        ctx.suc_value = ctx.builder.store(
+            self.expr.codegen(ctx).suc_value,
             self.value,
             align=self.value.align
         )
@@ -356,6 +387,8 @@ class VarDeclareNode(Node):
         varAssNode = VarAssignNode(ptr, self.expr, "")
 
         ctx = varAssNode.codegen(ctx)
+
+        ctx.suc_value = ptr
 
         return ctx
 

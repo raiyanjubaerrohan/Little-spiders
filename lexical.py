@@ -1,4 +1,36 @@
-from utils import *
+from utils import (
+    T_ADD,
+    T_SUB,
+    T_MUL,
+    T_DIV,
+    T_MOD,
+    T_QUS,
+    T_IDEN,
+    T_LPAN1,
+    T_LPAN2,
+    T_LPAN3,
+    T_RPAN1,
+    T_RPAN2,
+    T_RPAN3,
+    T_KEY,
+    T_NEQ,
+    T_ARROW,
+    T_COLON,
+    T_EOS,
+    T_EQ,
+    T_EQS,
+    T_GTE,
+    T_GT,
+    T_LTE,
+    T_LT,
+    T_LITERAL,
+    T_SQUTE,
+    NUMBERS,
+    ALPHABETS,
+    Position,
+    keywords,
+    
+)
 
 class Token:
     def __init__(self, ty, pos: Position, val = 0, typ = 0):
@@ -50,14 +82,12 @@ class Lexer:
         self.next_chr()
 
         while self.cur != None:
-
             if self.cur in ALPHABETS+'_':
                 tokens.append(self.makeIdentifier())
 
             elif self.cur in NUMBERS:
                 res, err = self.makeNumber()
                 if err: return None, err
-
                 tokens.append(res)
 
             elif self.cur == ' ': #space char
@@ -68,27 +98,32 @@ class Lexer:
 
             elif self.cur == '\t': #tab char
                 self.next_chr()
-            
+
             elif self.cur == '+':
-            	pos = Position(self.pos, self.pos+1)
-            	tokens.append(Token(T_ADD, pos))
-            	self.next_chr()
+                pos = Position(self.pos, self.pos+1)
+                tokens.append(Token(T_ADD, pos))
+                self.next_chr()
 
             elif self.cur == '-':
-            	pos = Position(self.pos, self.pos+1)
-            	tokens.append(Token(T_SUB, pos))
-            	self.next_chr()
+                pos = Position(self.pos, self.pos+1)
+                tokens.append(Token(T_SUB, pos))
+                self.next_chr()
 
             elif self.cur == '*':
-            	pos = Position(self.pos, self.pos+1)
-            	tokens.append(Token(T_MUL, pos, 1))
-            	self.next_chr()
-            	
+                pos = Position(self.pos, self.pos+1)
+                tokens.append(Token(T_MUL, pos, 1))
+                self.next_chr()
+
             elif self.cur == '/':
                 pos = Position(self.pos, self.pos+1)
                 tokens.append(Token(T_DIV, pos, 1))
                 self.next_chr()
-                
+
+            elif self.cur == "%":
+                pos = Position(self.pos, self.pos+1)
+                tokens.append(Token(T_MOD, pos, 1))
+                self.next_chr()
+
             elif self.cur == '?':
                 pos = Position(self.pos, self.pos+1)
                 tokens.append(Token(T_QUS, pos))

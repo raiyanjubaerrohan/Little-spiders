@@ -34,6 +34,10 @@ class Symantics:
                 elif exp_type == "short":
                     varDec.llvm_type = IntType(16)
                     expression.llvm_type = IntType(16)
+
+                elif exp_type == "string":
+                    varDec.llvm_type = IntType(8).as_pointer()
+                    expression.llvm_type = IntType(8).as_pointer()
                     
                 elif exp_type == "float":
                     varDec.llvm_type = FloatType()
@@ -46,14 +50,6 @@ class Symantics:
                 varDec.expr = expression
 
                 return 0, varDec
-
-            else:
-                raise Exception("""
-                something went wrong.
-                Please note that this is under development.
-                enter the debug mode to spot the problem.
-                (only for developer)
-                """)
 
         elif isinstance(self.cur_node, VarAssignNode):
             node = self.cur_node
@@ -70,6 +66,9 @@ class Symantics:
 
             elif exp_type == "char":
                 typed_ast.llvm_type = IntType(8)
+
+            elif exp_type == "string":
+                typed_ast.llvm_type = IntType(8).as_pointer()
 
             elif exp_type == "short":
                 typed_ast.llvm_type = IntType(16)
@@ -90,10 +89,16 @@ class Symantics:
         
             tree = self.cur_node
             self.cur_node = tree.lhs
-            _, ty_lhs = self.simanticize(exp_type)
+            lexp, ty_lhs = self.simanticize(exp_type)
+
+            if lexp == "string":
+                raise Exception("can not do operation with strings")
 
             self.cur_node = tree.rhs
-            _, ty_rhs = self.simanticize(exp_type)
+            lexp, ty_rhs = self.simanticize(exp_type)
+
+            if lexp == "string":
+                raise Exception("can not do operation with string")
 
             exp_type, ty_lhs, ty_rhs = self.align_type(
                 ty_lhs,
@@ -135,10 +140,16 @@ class Symantics:
             tree = self.cur_node
 
             self.cur_node = tree.lhs
-            _, typed_lhs = self.simanticize(exp_type)
+            lexp, typed_lhs = self.simanticize(exp_type)
+
+            if lexp == "string":
+                raise Exception("can not compare string")
 
             self.cur_node = tree.rhs
-            _, typed_rhs = self.simanticize(exp_type)
+            lexp, typed_rhs = self.simanticize(exp_type)
+
+            if lexp == "string":
+                raise Exception("can not compare string")
 
             exp_type, ty_lhs, ty_rhs = self.align_type(
                 typed_lhs,
@@ -232,6 +243,10 @@ class Symantics:
                     bool=CastIntToFlo
                 )
 
+            elif exp_type == "string":
+                raise Exception("can not cast to string from a constant or literal")
+            
+
             return 0, None
             #end
 
@@ -251,6 +266,8 @@ class Symantics:
 
             return exp_type, PosNode(node)
 
+        elif isinstance(self.cur_node, StringNode):
+            return "string", self.cur_node
 
         elif isinstance(self.cur_node, IfElseBlock):
             if_block = self.cur_node
@@ -321,6 +338,9 @@ class Symantics:
             return DoubleType()
         elif exp_type == "float":
             return FloatType()
+
+        elif exp_type == "string":
+            return IntType(8).as_pointer()
 
         else:
             raise Exception("no type matched")
@@ -456,7 +476,6 @@ class Symantics:
 
             return "bool", lhs, rhs #every oprand is boolean
 
-
         #end
     #end
 
@@ -493,6 +512,10 @@ class Symantics:
         elif self.cur_node == "double":
             self.cur_node.llvm_type = DoubleType()
             current_type = "double"
+
+        elif self.cur_node == "string":
+            self.cur_node.llvm_type = IntType(8).as_pointer()
+            current_type = "string"
 
         elif self.cur_node != base_str:
             raise Exception(f"unable to cast {self.cur_node}")
