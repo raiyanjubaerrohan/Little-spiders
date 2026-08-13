@@ -1,353 +1,279 @@
 from nodes import *
-from llvmlite.ir import FloatType, IntType, DoubleType
+from llvmlite.ir import FloatType, IntType, DoubleType,  PointerType
 
 class Symantics:
+
+    def __init__(self):
+        self.cur_node = None
+        self.exp_type = None
 
     def load(self, ast):
         self.cur_node = ast
 
+    def simanticize_varDecNode(self) -> tuple[Node | None, Exception | None]:
+        
+        varDec = self.cur_node
+        self.cur_node = varDec.expr
+        self.exp_type = varDec.llvm_type
+        
+        expr, err = self.simanticize()
+        if err: return None, err
 
-    def simanticize(self, exp_type = "") -> tuple[str | int, Node]:
+        if expr and self.exp_type:
+            res, err = self.get_currect_type()
+            if err: return None, err
+
+            varDec.llvm_type = res
+            expr.llvm_type = res
+
+            varDec.expr = expr
+
+            return varDec, None
+
+        return None, Exception("can not find a type for the variable")
+
+    def simanticize_varAssNode(self) -> tuple[Node | None, Exception | None]:
+
+        node = self.cur_node
+        self.exp_type = node.llvm_type
+
+        self.cur_node = node.expr
+        expr, err = self.simanticize()
+        if err: return None, err
+
+        res, err = self.get_currect_type()
+        if err: return None, err
+
+        expr.llvm_type = res
+
+        return VarAssignNode(node.value, expr, self.exp_type), None
+
+    def simanticize_binOpNode(self):
+
+        tree = self.cur_node
+
+        ### lhs
+        self.cur_node = tree.lhs
+        res_lhs, err = self.simanticize()
+        if err: return None, err
+        elif self.exp_type == "string":
+            return None, Exception("can not do operation with string")
+
+        ### rhs
+        self.cur_node = tree.rhs
+        res_rhs, err = self.simanticize()
+        if err: return None, err
+        elif self.exp_type == "string":
+            return None, Exception("can not do operation with string")
+
+        ty_lhs, ty_rhs, err = self.align_type(
+            res_lhs,
+            res_rhs
+        )
+        if err: return None, err
+
+        binOp = BinOpNode(tree.value, ty_lhs, ty_rhs)
+
+        res, err = self.get_currect_type()
+        if err: return None, err
+
+        binOp.llvm_type = res
+
+        return binOp, None
+
+
+    def simanticize_compareNode(self):
+
+        tree = self.cur_node
+
+        ### lhs
+        self.cur_node = tree.lhs
+        res_lhs, err = self.simanticize()
+        if err: return None, err
+        elif self.exp_type == "string":
+            return None, Exception("can not compare string")
+
+        ### rhs
+        self.cur_node = tree.rhs
+        res_rhs, err = self.simanticize()
+        if err: return None, err
+        elif self.exp_type == "string":
+            return None, Exception("can not compare string")
+
+        ty_lhs, ty_rhs, err = self.align_type(
+            res_lhs,
+            res_rhs
+        )
+        if err: return None, err
+
+        cmpNode = CompareNode(tree.value, ty_lhs, ty_rhs)
+
+        cmpNode.llvm_type = "bool"
+        cmpNode.mean_type = self.exp_type
+
+        self.exp_type = "bool"
+
+        return cmpNode, None
+
+    def simanticize(self) -> tuple[Node | None, Exception | None]:
 
         if isinstance(self.cur_node, VarDeclareNode):
 
-            varDec = self.cur_node
-            self.cur_node = varDec.expr
-            exp_type = varDec.llvm_type
+            res, err = self.simanticize_varDecNode()
+            if err: return None, err
 
-            exp_type,expression = self.simanticize(exp_type)
-
-            if exp_type and expression:
-            
-                if exp_type  == "int":
-                    varDec.llvm_type = IntType(32)
-                    expression.llvm_type = IntType(32)
-
-                elif exp_type == "bool":
-                    varDec.llvm_type = IntType(1)
-                    expression.llvm_type = IntType(1)
-
-                elif exp_type == "char":
-                    varDec.llvm_type = IntType(8)
-                    expression.llvm_type = IntType(8)
-
-                elif exp_type == "short":
-                    varDec.llvm_type = IntType(16)
-                    expression.llvm_type = IntType(16)
-
-                elif exp_type == "string":
-                    varDec.llvm_type = IntType(8).as_pointer()
-                    expression.llvm_type = IntType(8).as_pointer()
-                    
-                elif exp_type == "float":
-                    varDec.llvm_type = FloatType()
-                    expression.llvm_type = FloatType()
-
-                elif exp_type == "double":
-                    varDec.llvm_type = DoubleType()
-                    expression.llvm_type = DoubleType()
-
-                varDec.expr = expression
-
-                return 0, varDec
+            return res, None
 
         elif isinstance(self.cur_node, VarAssignNode):
-            node = self.cur_node
-            exp_type = self.cur_node.llvm_type
 
-            self.cur_node = node.expr
-            exp_type, typed_ast = self.simanticize(exp_type)
+            res, err = self.simanticize_varAssNode()
+            if err: return None, err
 
-            if exp_type == "int":
-                typed_ast.llvm_type = IntType(32)
-
-            elif exp_type == "bool":
-                typed_ast.llvm_type = IntType(1)
-
-            elif exp_type == "char":
-                typed_ast.llvm_type = IntType(8)
-
-            elif exp_type == "string":
-                typed_ast.llvm_type = IntType(8).as_pointer()
-
-            elif exp_type == "short":
-                typed_ast.llvm_type = IntType(16)
-
-            elif exp_type == "float":
-                typed_ast.llvm_type = FloatType()
-
-            elif exp_type == "double":
-                typed_ast.llvm_type = DoubleType()
-
-            return 0,VarAssignNode(
-                node.value,
-                typed_ast,
-                exp_type
-            )
+            return res, None
         
         elif isinstance(self.cur_node, BinOpNode):
         
-            tree = self.cur_node
-            self.cur_node = tree.lhs
-            lexp, ty_lhs = self.simanticize(exp_type)
+            res, err = self.simanticize_binOp()
+            if err: return None, err
 
-            if lexp == "string":
-                raise Exception("can not do operation with strings")
-
-            self.cur_node = tree.rhs
-            lexp, ty_rhs = self.simanticize(exp_type)
-
-            if lexp == "string":
-                raise Exception("can not do operation with string")
-
-            exp_type, ty_lhs, ty_rhs = self.align_type(
-                ty_lhs,
-                ty_rhs,
-                exp_type
-            )
-
-            binOp = BinOpNode(
-                tree.value,
-                ty_lhs, 
-                ty_rhs
-            )
-
-            if exp_type == "int":
-                binOp.llvm_type = IntType(32)
-
-            elif exp_type == "bool":
-                binOp.llvm_type = IntType(1)
-
-            elif exp_type == "char":
-                binOp.llvm_type = IntType(8)
-
-            elif exp_type == "short":
-                binOp.llvm_type = IntType(16)
-
-            elif exp_type == "float":
-                binOp.llvm_type = FloatType()
-
-            elif exp_type == "double":
-                binOp.llvm_type = DoubleType()
-
-            else:
-                raise Exception("something went wrong, from symanticizer")
-
-            return exp_type, binOp
+            return res, None
 
         elif isinstance(self.cur_node, CompareNode):
 
-            tree = self.cur_node
+            res, err = self.simanticize_compareNode()
+            if err: return None, err
 
-            self.cur_node = tree.lhs
-            lexp, typed_lhs = self.simanticize(exp_type)
-
-            if lexp == "string":
-                raise Exception("can not compare string")
-
-            self.cur_node = tree.rhs
-            lexp, typed_rhs = self.simanticize(exp_type)
-
-            if lexp == "string":
-                raise Exception("can not compare string")
-
-            exp_type, ty_lhs, ty_rhs = self.align_type(
-                typed_lhs,
-                typed_rhs,
-                exp_type
-            )
-
-            cmpNode = CompareNode(tree.value, ty_lhs, ty_rhs)
-
-            cmpNode.llvm_type = "bool"
-            cmpNode.mean_type = exp_type
-
-            return "bool" , cmpNode
+            return res, None
 
         elif isinstance(self.cur_node, (ConstantNode, VarFetchNode)):
-        
-            if not exp_type:
-                return self.cur_node.llvm_type, self.cur_node
-
-            elif exp_type == "int":
+            self.exp_type = self.cur_node.llvm_type
             
-                return self.select_type(
-                    IntType(32),
-                    "int",
-                    float=CastFloToInt,
-                    double=CastFloToInt,
-                    char=CastIntHigh,
-                    short=CastIntHigh,
-                    bool=CastIntHigh
-                )
-
-
-            elif exp_type == "char":
-
-                return self.select_type(
-                    IntType(8),
-                    "char",
-                    float=CastFloToInt,
-                    double=CastFloToInt,
-                    int=CastIntLow,
-                    short=CastIntLow,
-                    bool=CastIntHigh
-                )
-
-            elif exp_type == "bool":
-
-                return self.select_type(
-                    IntType(1),
-                    "bool",
-                    float=CastFloToInt,
-                    double=CastFloToInt,
-                    int=CastIntLow,
-                    short=CastIntLow,
-                    char=CastIntLow
-                )
-
-
-            elif exp_type == "short":
-
-                return self.select_type(
-                    IntType(16),
-                    "short",
-                    int=CastIntLow,
-                    char=CastIntHigh,
-                    float=CastFloToInt,
-                    double=CastFloToInt,
-                    bool=CastIntHigh
-                )
-
-            elif exp_type == "float":
-
-                return self.select_type(
-                    FloatType(),
-                    "float",
-                    int=CastIntToFlo,
-                    char=CastIntToFlo,
-                    short=CastIntToFlo,
-                    double=CastFloLow,
-                    bool=CastIntToFlo
-                )
-
-            elif exp_type == "double":
-            
-                return self.select_type(
-                    DoubleType(),
-                    "double",
-                    int=CastIntToFlo,
-                    char=CastIntToFlo,
-                    short=CastIntToFlo,
-                    float=CastFloHigh,
-                    bool=CastIntToFlo
-                )
-
-            elif exp_type == "string":
-                raise Exception("can not cast to string from a constant or literal")
-            
-
-            return 0, None
+            return self.cur_node, None
             #end
 
         elif isinstance(self.cur_node, NegNode):
             node = self.cur_node
             self.cur_node = node.value
-            exp_type, node = self.simanticize(exp_type)
+            node, err = self.simanticize()
+            if err: return None, err
+            
             node.llvm_type = self.get_currect_type(exp_type)
 
-            return exp_type, NegNode(node)
+            return NegNode(node), None
 
         elif isinstance(self.cur_node, PosNode):
             node = self.cur_node
             self.cur_node = node.value
-            exp_type, node = self.simanticize(exp_type)
+            node, err = self.simanticize()
+            if err: return None, err
+            
             node.llvm_type = self.get_currect_type(exp_type)
 
-            return exp_type, PosNode(node)
+            return PosNode(node), None
 
         elif isinstance(self.cur_node, StringNode):
-            return "string", self.cur_node
+            self.exp_type = "string"
+            return self.cur_node, None
 
         elif isinstance(self.cur_node, IfElseBlock):
-            if_block = self.cur_node
 
-            self.cur_node = if_block.cond
-            _, res = self.simanticize()
+            res, err = self.simanticize()
+            if err : return None, err
 
-            if res is not None:
-                if_block.cond = res
-            else: 
-                return 0, None
-            
-            stmts = []
-            
-            for stm in if_block.body:
-            
-                self.cur_node = stm
-                _, res = self.simanticize()
-                
-                if res is not None:
-                    stmts.append(res)
-                else:
-                    return 0, None
-
-            self.cur_node = if_block.else_block
-            _, res = self.simanticize()
-
-            if res is not None:
-                return 0, IfElseBlock(if_block.cond, stmts, res)
-
-            # else
-            return 0, None
+            return res, None
 
         elif isinstance(self.cur_node, ElseBlock):
-            else_block = self.cur_node
 
-            stmts = []
+            res, err = self.simanticize_ElseBlock()
+            if err: return None, err
 
-            for stm in else_block.body:
-
-                self.cur_node = stm
-                _, res = self.simanticize()
-
-                if res is not None:
-                    stmts.append(res)
-                else:
-                    return 0, None
-
-            return 0, ElseBlock(stmts)
+            return res, None
 
         elif isinstance(self.cur_node, DefaultBlock):
-            return 0, self.cur_node
+            return self.cur_node, None
             
         #end
-        return 0, None
+        return None, Exception("no object matched the list")
 
-    def get_currect_type(self, exp_type):
-        if exp_type == "int":
-            return IntType(32)
-        elif exp_type == "short":
-            return IntType(16)
-        elif exp_type == "char":
-            return IntType(8)
-        elif exp_type == "bool":
-            return IntType(1)
+    def simanticize_ifElseBlock(self) -> tuple[IfElseBlock | None, Exception | None]:
 
-        elif exp_type == "double":
-            return DoubleType()
-        elif exp_type == "float":
-            return FloatType()
+        if_block = self.cur_node
 
-        elif exp_type == "string":
-            return IntType(8).as_pointer()
+        # the condition
+        self.cur_node = if_block.cond
+        res_cond, err = self.simanticize()
+        if err: return None, err
+
+        # the body
+        stmts = []
+
+        for stm in if_block.body:
+            self.cur_node = stm
+
+            res, err = self.simanticize()
+            if err: return None, err
+
+            stmts.append(res)
+
+        # the else block
+        self.cur_node = if_block.else_block
+        res_else_block, err = self.simanticize()
+        if err: return None, err
+
+        return IfElseBlock(res_cond, stmts, res_else_block)
+
+    def simanticize_ElseBlock(self):
+
+        else_block = self.cur_node
+
+        stmts = []
+
+        for stm in else_block.body:
+            self.cur_node = stm
+
+            res, err = self.simanticize()
+            if err: return None, err
+
+            stmts.append(res)
+
+        return ElseBlock(stmts), None
+
+    def get_currect_type(self) -> tuple[
+        IntType | DoubleType | FloatType | PointerType | None,
+        Exception | None
+    ]:
+        if self.exp_type == "int":
+            return IntType(32), None
+            
+        elif self.exp_type == "short":
+            return IntType(16), None
+            
+        elif self.exp_type == "char":
+            return IntType(8), None
+            
+        elif self.exp_type == "bool":
+            return IntType(1), None
+            
+
+        elif self.exp_type == "double":
+            return DoubleType(), None
+            
+        elif self.exp_type == "float":
+            return FloatType(), None
+            
+
+        elif self.exp_type == "string":
+            return IntType(8).as_pointer(), None
 
         else:
-            raise Exception("no type matched")
+            return None, Exception("no type matched")
 
-    def align_type(self, lhs, rhs, exp_type):
-        if exp_type:
-            return exp_type, lhs, rhs
+    def align_type(self, lhs, rhs) -> tuple[
+        Node, Node, None] | tuple[None, None, Exception
+        ]:
+    
+        if self.exp_type:
+            return lhs, rhs, None
 
         #the else should be sorted by dominance to be currect         
         else:
@@ -359,6 +285,7 @@ class Symantics:
                 #temporary var to store the current node
 
                 self.cur_node = lhs #for passing in select_type
+                
                 _, lhs = self.select_type(
                     DoubleType(),
                     "double",
@@ -382,8 +309,9 @@ class Symantics:
 
                 #at very end reassign the current node to be currect
                 self.cur_node = temp
+                self.exp_type = "double"
 
-                return "double", lhs, rhs
+                return lhs, rhs, None
                                 
             if "float" in (lhs.llvm_type, rhs.llvm_type):
 
@@ -411,8 +339,9 @@ class Symantics:
                 )
 
                 self.cur_node = temp
+                self.exp_type = "float"
 
-                return "float", lhs, rhs
+                return lhs, rhs, None
 
             if "int" in (lhs.llvm_type, rhs.llvm_type):
 
@@ -437,8 +366,9 @@ class Symantics:
                 )
 
                 self.cur_node = temp
+                self.exp_type = "int"
 
-                return "int", lhs, rhs
+                return lhs, rhs
 
             if "short" in (lhs.llvm_type, rhs.llvm_type):
 
@@ -460,7 +390,10 @@ class Symantics:
                     bool=CastIntHigh
                 )
 
-                return "short", lhs, rhs
+                self.cur_node = temp
+                self.exp_type = "short"
+
+                return lhs, rhs
 
             if "char" in (lhs.llvm_type, rhs.llvm_type):
                 #this is different because of optimization
@@ -472,9 +405,13 @@ class Symantics:
                     rhs.llvm_type = IntType(1)
                     rhs = CastIntHigh(rhs, IntType(8))
 
-                return "char", lhs, rhs
+                self.exp_type = "char"
 
-            return "bool", lhs, rhs #every oprand is boolean
+                return lhs, rhs, None
+
+            self.exp_type = "bool" # every operand is boolean
+            
+            return lhs, rhs 
 
         #end
     #end
@@ -484,11 +421,11 @@ class Symantics:
         base_type, # llvm type instance
         base_str,
         **cast_types #the reference of casting type
-    ):
+    ) -> tuple[str, Node, None] | tuple[None, None, Exception]:
 
         current_type = ""
     
-        if self.cur_node.llvm_type == "int":
+        if self.cur_node == "int":
             self.cur_node.llvm_type = IntType(32)
             current_type = "int"
 
@@ -518,13 +455,13 @@ class Symantics:
             current_type = "string"
 
         elif self.cur_node != base_str:
-            raise Exception(f"unable to cast {self.cur_node}")
+            return None, None, Exception(f"unable to cast {self.cur_node}")
 
         if current_type in cast_types:
             return base_str, cast_types[current_type](
                 self.cur_node,
                 base_type
-            )
+            ), None
 
         #else
         return base_str, self.cur_node
