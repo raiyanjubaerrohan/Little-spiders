@@ -37,7 +37,6 @@ from utils import (
     T_DIV,
     T_MOD,
     Position,
-    op_list,
 )
 
 from lexical import Token, Lexer
@@ -104,7 +103,7 @@ class Parser:
 
         eof, err = self.next_tok()
 
-        if eof: return "theend", err
+        if eof: return "theend", Exception("@parser, excepted more tokens")
         if err: return None, err
 
         while self.cur_tok not in self.EOE:
@@ -121,7 +120,7 @@ class Parser:
 
             eof, err = self.next_tok()
 
-            if eof: return "theend", err
+            if eof: return "theend", Exception("@parser, excepted more tokens")
             if err: return None, err
 
             right, err = self.expr(rbp)
@@ -145,7 +144,7 @@ class Parser:
 
             eof, err = self.next_tok()
 
-            if eof: return "theend", err
+            if eof: return "theend", Exception("@parser, excepted more tokens")
             if err: return None, err
 
             return self.factor()
@@ -163,7 +162,7 @@ class Parser:
 
             eof, err = self.next_tok()
 
-            if eof: return "theend", err
+            if eof: return "theend", Exception("@parser, expected more tokens")
             if err: return None, err
 
             res, err = self.expr()
