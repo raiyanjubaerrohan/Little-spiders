@@ -1,5 +1,10 @@
 from nodes import *
-from llvmlite.ir import FloatType, IntType, DoubleType,  PointerType
+from llvmlite.ir import (
+	FloatType,
+	IntType,
+	DoubleType,
+	PointerType,
+)
 
 class Symantics:
 
@@ -11,11 +16,10 @@ class Symantics:
         self.cur_node = ast
 
     def simanticize_varDecNode(self) -> tuple[Node | None, Exception | None]:
-        
         varDec = self.cur_node
         self.cur_node = varDec.expr
         self.exp_type = varDec.llvm_type
-        
+
         expr, err = self.simanticize()
         if err: return None, err
 
@@ -133,7 +137,7 @@ class Symantics:
         
         elif isinstance(self.cur_node, BinOpNode):
         
-            res, err = self.simanticize_binOp()
+            res, err = self.simanticize_binOpNode()
             if err: return None, err
 
             return res, None
@@ -147,7 +151,11 @@ class Symantics:
 
         elif isinstance(self.cur_node, (ConstantNode, VarFetchNode)):
             self.exp_type = self.cur_node.llvm_type
-            
+
+            llvm_type, err = self.get_currect_type()
+            if err: return None, err
+
+            self.cur_node.llvm_type = llvm_type            
             return self.cur_node, None
             #end
 

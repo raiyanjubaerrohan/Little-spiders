@@ -1,3 +1,2 @@
-let x = 10;
 
-let str: string = "hello world";
+let a = (1 + (2)*3);

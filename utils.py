@@ -51,6 +51,20 @@ keywords = [
     "end",
 ]
 
+op_list = [
+    T_ADD,
+    T_SUB,
+    T_MUL,
+    T_DIV,
+    T_MOD,
+    T_EQ,
+    T_EQS,
+    T_NEQ,
+    T_LT,
+    T_LTE,
+    T_GT,
+    T_GTE,
+]
 
 def getCurrectType(ty) -> str:
 

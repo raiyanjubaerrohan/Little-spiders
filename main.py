@@ -83,13 +83,12 @@ while not theEnd:
         exit(1)
 
     simantics.load(tlast)
-    res, err = simantics.simanticize()
+    tpast, err = simantics.simanticize()
     if err:
         print(err_msg.format(err))
         exit(1)
 
-    ctx = res.codegen(ctx)
-
+    ctx = tpast.codegen(ctx)
 
 f.close()
 

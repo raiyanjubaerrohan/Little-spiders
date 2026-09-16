@@ -136,6 +136,10 @@ class BinOpNode(Node):
                 ctx.suc_value = ctx.builder.sdiv(ls, rs)
                 return ctx
 
+            elif self.value == T_MOD:
+                ctx.suc_value = ctx.builder.srem(ls, rs)
+                return ctx
+
             raise Exception("not a valid operation")
 
         #these all returns from the function
@@ -156,6 +160,10 @@ class BinOpNode(Node):
             
         elif self.value == T_DIV:
             ctx.suc_value = ctx.builder.fdiv(ls, rs)
+            return ctx
+
+        elif self.value == T_MOD:
+            ctx.suc_value = ctx.builder.frem(ls, rs)
             return ctx
 
         raise Exception("not a valid operation")

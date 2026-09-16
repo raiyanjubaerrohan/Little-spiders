@@ -16,7 +16,7 @@ from nodes import (
 )
 
 from utils import (
-    T_EOS, 
+    T_EOS,
     T_IDEN,
     T_EQ,
     cutOut,
@@ -37,6 +37,7 @@ from utils import (
     T_DIV,
     T_MOD,
     Position,
+    op_list,
 )
 
 from lexical import Token, Lexer
@@ -48,17 +49,13 @@ class Parser:
         self.cur_tok = None
         self.cur_pos = 0
         self.node_start = 0
-        self.EOE = T_EOS
+        self.EOE = [T_EOS]
         self.cache: list[tuple[int, Node | MyBlock]] = []
         self.indent = 0
         self.lexer = Lexer()
         self.ctx = None
         self.file = None
 
-    def append(self, tok) -> Exception | None:
-        self.tokens.append(tok)
-
-    
     def consume(self) -> Exception | None:
         line = self.file.read()
 
@@ -68,7 +65,7 @@ class Parser:
         else:
             tokens, err = self.lexer.lex(line)
             if err: return err
-        
+
         for tok in tokens:
             self.tokens.append(tok)
 
@@ -98,207 +95,116 @@ class Parser:
             return False, None
         
 
-    def compare_expr(self) -> tuple[Node | None, Exception | None]:
-        left, err = self.expr()
+    def expr(self, min_bp = 0) -> tuple[Node | None, Exception | None]:
+
+        left, err = self.factor()
 
         if left == "theend": return left, err
         if err: return None, err
 
-        while (self.cur_tok != self.EOE
-        and self.cur_tok.type in (
-            T_EQS, T_NEQ, T_LT, T_LTE, T_GT, T_GTE
-        )):
+        eof, err = self.next_tok()
 
-            if self.cur_tok == T_RPAN1:
-
-                eof, err = self.next_tok()
-                if eof:
-                    return "theend", Exception("expected more tokens")
-                elif err:
-                    return None, err
-                
-                return left, None
-
-            center = self.cur_tok.type
-            eof, err = self.next_tok()
-
-            if eof:
-                return "theend", Exception("expected more tokens")
-            elif err:
-                return None, err
-
-            right, err = self.expr()
-
-            if right == 'theend': return right, err
-            if err: return None, err
-            left = CompareNode(center, left, right)
-
-        return left, None
-
-
-    def expr(self) -> tuple[Node | None, Exception | None]:
-
-        left, err = self.term()
-
-        if left == 'theend': return left, err
+        if eof: return "theend", err
         if err: return None, err
 
-        while (self.cur_tok != self.EOE
-        and self.cur_tok.type in (
-            T_ADD, T_SUB, T_MOD, T_RPAN1
-        )):
+        while self.cur_tok not in self.EOE:
 
-            if self.cur_tok == T_RPAN1:
-                eof, err = self.next_tok()
+            operand = self.cur_tok
 
-                if eof:
-                    return "theend", Exception("expected more tokens")
-                elif err:
-                    return None, err
-                    
+            if operand == T_RPAN1:
                 return left, None
 
+            lbp, rbp, err = self.get_binding_power(operand)
 
-            center = self.cur_tok.type
+            if lbp < min_bp:
+                break
 
             eof, err = self.next_tok()
-            if eof:
-                return "theend", Exception("expected more tokens")
-            elif err:
-                return None, err
 
-            right, err = self.term()
-
-            if right == "theend": return right, err
+            if eof: return "theend", err
             if err: return None, err
-            left = BinOpNode(center, left, right)
+
+            right, err = self.expr(rbp)
+
+            if err: return None, err
+
+            if lbp in (5,7):
+                left = BinOpNode(operand, left, right)
+            elif lbp == 3:
+                left = CompareNode(operand, left, right)
+
+            # I have covered all the cases
+            # there should not be another case left
 
         return left, None
 
 
-    def term(self) -> tuple[Node | None, Exception | None]:
+    def factor(self):
 
-        left, err = self.factor()
+        if self.cur_tok.type in (T_ADD, T_SUB):
 
-        if left == 'theend': return left, err
-        if err: return None, err
-
-        while (self.cur_tok != self.EOE
-        and self.cur_tok.type in(
-            T_MUL, T_DIV, T_RPAN1
-        )):
-
-            if self.cur_tok == T_RPAN1:
-                return left, None
-
-            center = self.cur_tok.type
             eof, err = self.next_tok()
 
-            if eof:
-                return "theend", Exception("expected more tokens")
-            elif err:
-                return None, err
-
-            right, err = self.factor()
-
-            if right == 'theend': return right, err
+            if eof: return "theend", err
             if err: return None, err
-            left = BinOpNode(center, left, right)
 
-        return left, None
+            return self.factor()
 
+        elif self.cur_tok.typer in ("int", "float"):
+            return ConstantNode(
+                self.cur_tok.value, 
+                self.cur_tok.typer
+            ), None
 
-    def factor(self) -> tuple[Node | None, Exception | None]:
+        elif self.cur_tok.typer == "string":
+            return StringNode(self.cur_tok.value)
 
-        t = self.cur_tok
-
-        if t.type in (T_ADD, T_SUB):
+        elif self.cur_tok == T_LPAN1:
 
             eof, err = self.next_tok()
 
-            if eof:
-                return "theend", Exception("expected more tokens")
-            elif err:
-                return None, err
+            if eof: return "theend", err
+            if err: return None, err
+
+            res, err = self.expr()
             
-            res, err = self.factor()
-
-            if res == 'theend': return res, err
-            if err:return None, err
-
-            if t == T_SUB:
-                return NegNode(res),None
-
-            else:
-                return PosNode(res), None
-
-
-        elif t == T_LPAN1:
-            eof, err = self.next_tok()
-
-            if eof:
-                return "theend", Exception("expected more tokens")
-            elif err:
-                return None, err
+            if err: return None, err
             
-            return self.compare_expr()
-
-        elif t == T_LITERAL:
-            #a common factor
-            eof, err = self.next_tok()
-
-            if eof:
-                return "theend", Exception("expected more tokens")
-            elif err:
-                return None, err
-
-            if t.typer in ("int","float"):
-                return ConstantNode(t.value, t.typer), None
-
-            if t.typer == "string":
-                return StringNode(t.value), None
-
-            elif t.typer == "bool":
-                return ConstantNode(1 if t.value == "true" else 0, "bool"), None
-
-        elif t == T_IDEN:
-
-            iden = t.value
-            eof, err = self.next_tok()
-
-            if eof:
-                return "theend", Exception("expected more tokens")
-
-            elif err:
-                return None, err
-
-            if self.cur_tok == T_LPAN1:
-                pass #this is a call
-
-            #else
-            if iden in self.ctx.variables_ptr:
-
-                return VarFetchNode(
-                    self.ctx.variables_ptr[iden]["value"],
-                    self.ctx.variables_ptr[iden]["type"]
-                ), None
-
+            if self.cur_tok == T_RPAN1:
+                return res, None
             else:
-                return None, Exception(f"unknown variable {iden}")
+                return None, Exception("@parser, found no closing paranthisis!")
+
+        else:
+            return None, Exception(f"@parser, unknown prefix or operand {self.cur_tok}!")
+        
 
 
-        return None, Exception(f"invalid token {t}")
+    def get_binding_power(self, op) -> tuple[int, int, Exception | None]:
 
+        if op.type in (T_ADD, T_SUB):
+            return 5, 6, None
 
+        elif op.type in (T_MUL, T_DIV, T_MOD):
+            return 7, 8, None
 
+        elif op.type in (
+            T_EQ, T_EQS,
+            T_LT, T_LTE,
+            T_GT, T_GTE
+        ): return 3, 4, None
+
+        else: return 0, 0, Exception(f"@parser, invalid operand {op}")
+        
+        
     def expect(self, *v, isType = True) -> Exception | None:
 
         if isType:
             if not self.cur_tok.type in v:
-                return Exception(f"expected {v} as type")
+                return Exception(f"@parser, expected {v} as type")
         else:
             if not self.cur_tok.value in v:
-                return Exception(f"expected {v} as value")
+                return Exception(f"@parser, expected {v} as value")
         return None
         
 
@@ -307,7 +213,7 @@ class Parser:
         eof, err = self.next_tok()
 
         if eof:
-            return "theend", Exception("expected more tokens")
+            return "theend", Exception("@parser, expected more tokens")
         elif err:
             return None, err            
 
@@ -321,7 +227,7 @@ class Parser:
         eof, err = self.next_tok()
 
         if eof:
-            return "theend", Exception("expected more tokens")
+            return "theend", Exception("@parser, expected more tokens")
         elif err:
             return None, err
 
@@ -330,7 +236,7 @@ class Parser:
             eof, err = self.next_tok()
 
             if eof:
-                return "theend", Exception("expected more tokens")
+                return "theend", Exception("@parser, expected more tokens")
             elif err:
                 return None, err
 
@@ -345,7 +251,7 @@ class Parser:
             eof, err = self.next_tok()
 
             if eof:
-                return "theend", Exception("expected more tokens")
+                return "theend", Exception("@parser, expected more tokens")
             elif err: 
                 return None, err
 
@@ -353,11 +259,11 @@ class Parser:
             eof, err = self.next_tok()
 
             if eof:
-                return "theend", Exception("expected more tokens")
+                return "theend", Exception("@parser, expected more tokens")
             elif err:
                 return None, err
 
-            var_expr, err = self.compare_expr()
+            var_expr, err = self.expr()
 
             if var_expr == 'theend': return var_expr, err
             if err: return None, err
@@ -373,7 +279,7 @@ class Parser:
             return None, err        
 
         if (not var_expr) and (not var_type):
-            return None, Exception(f"excepted a type or a default value, {var_name}")
+            return None, Exception(f"@parser, excepted a type or a default value, {var_name}")
 
         varDecNode = VarDeclareNode(var_name)
 
@@ -398,12 +304,12 @@ class Parser:
         eof, err = self.next_tok()
 
         if eof:
-            return "theend", Exception("expected more tokens")
+            return "theend", Exception("@parser, expected more tokens")
 
         elif err:
             return None, err
 
-        expression, err = self.compare_expr()
+        expression, err = self.expr()
 
         if expression == 'theend': return expression, err
         if err: return None, err
@@ -435,25 +341,25 @@ class Parser:
             ), None
 
         #else
-        return None, Exception(f"unknow identifier {iden}")
+        return None, Exception(f"@parser, unknow identifier {iden}")
 
     def parse_if(self):
     
         eof, err = self.next_tok()
         
         if eof:
-            return "theend", Exception("expected condition after if")
+            return "theend", Exception("@parser, expected condition after if")
 
         elif err:
             return None, err
 
         #adjusting the end point of expr
         pre_eoe = self.EOE
-        self.EOE = T_COLON
+        self.EOE = [T_COLON]
 
         start_pos = self.node_start
         
-        cond_expr, err = self.compare_expr()
+        cond_expr, err = self.expr()
 
         if cond_expr == 'theend': return cond_expr, err
         if err: return None, err
@@ -469,7 +375,7 @@ class Parser:
         eof, err = self.next_tok()
         
         if eof:
-            return "theend" , Exception("excepted at least end keyword to close the if block")
+            return "theend" , Exception("@parser, excepted at least end keyword to close the if block")
 
         elif err:
             return None, err
@@ -489,7 +395,7 @@ class Parser:
             self.cache.append((self.indent, res))
 
         if self.cur_tok == T_EOF:
-            return None, Exception("excepted at least \"end\" to close the if block")
+            return None, Exception("@parser, excepted at least \"end\" to close the if block")
 
         current_block = IfElseBlock(
             cond_expr,
@@ -556,7 +462,7 @@ class Parser:
         eof, err = self.next_tok() #consume else key
 
         if eof:
-            return "theend", Exception("expected more tokens")
+            return "theend", Exception("@parser, expected more tokens")
         elif err:
             return None, err
 
@@ -566,7 +472,7 @@ class Parser:
         eof, err = self.next_tok() # consume the colon
 
         if eof:
-            return 'theend', Exception("expected more tokens")
+            return 'theend', Exception("@parser, expected more tokens")
 
         elif err:
             return None, err
@@ -577,7 +483,7 @@ class Parser:
             res, err = self.router()
 
             if res == 'theend': 
-                return res, Exception("excepted at least \"end\" to close the if block")
+                return res, Exception("@parser, excepted at least \"end\" to close the if block")
 
             elif err: 
                 return None, err
@@ -639,7 +545,7 @@ class Parser:
             eof, err = self.next_tok()
 
             if eof:
-                return "theend", Exception(f"excepted more tokens after {iden_name}")
+                return "theend", Exception(f"@parser, excepted more tokens after {iden_name}")
             elif err:
                 return None, err
 
@@ -647,7 +553,7 @@ class Parser:
             if self.cur_tok == T_EQ:
                 return self.parse_assign(iden_name)
 
-        return self.compare_expr()
+        return self.expr()
 
 
     def parse(self) -> tuple[Node | None, Exception | None]:

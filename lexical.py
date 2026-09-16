@@ -111,17 +111,17 @@ class Lexer:
 
             elif self.cur == '*':
                 pos = Position(self.pos, self.pos+1)
-                tokens.append(Token(T_MUL, pos, 1))
+                tokens.append(Token(T_MUL, pos))
                 self.next_chr()
 
             elif self.cur == '/':
                 pos = Position(self.pos, self.pos+1)
-                tokens.append(Token(T_DIV, pos, 1))
+                tokens.append(Token(T_DIV, pos))
                 self.next_chr()
 
             elif self.cur == "%":
                 pos = Position(self.pos, self.pos+1)
-                tokens.append(Token(T_MOD, pos, 1))
+                tokens.append(Token(T_MOD, pos))
                 self.next_chr()
 
             elif self.cur == '?':
@@ -190,10 +190,7 @@ class Lexer:
                 self.next_chr()
 
             else: 
-                return None, Exception(
-                    f"invalid token '{self.cur}''"
-                )
-
+                return None, Exception(f"@lexer, invalid token '{self.cur}'")
 
         return tokens, None
         #end
@@ -249,9 +246,7 @@ class Lexer:
             return Token(T_ARROW, pos), None
 
         else:
-            return None, Exception(
-                f"invalid token {eqs}"
-            )
+            return None, Exception(f"@lexer, invalid token {eqs}")
 
     def makeNumber(self):
         num_str = ''
@@ -271,9 +266,7 @@ class Lexer:
         pos = Position(start_pos, self.pos)
         
         if have_error:
-            return None, Exception(
-                f"invalid number {num_str}"
-            )
+            return None, Exception(f"@lexer, invalid number {num_str}")
 
         elif dots == 1:
             return Token(T_LITERAL, pos, float(num_str), "float"), None
