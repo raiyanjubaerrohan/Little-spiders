@@ -1,6 +1,5 @@
 from nodes import (
     Node,
-    MyBlock,
     ConstantNode,
     CompareNode,
     BinOpNode,
@@ -156,7 +155,7 @@ class Parser:
             ), None
 
         elif self.cur_tok.typer == "string":
-            return StringNode(self.cur_tok.value)
+            return StringNode(self.cur_tok.value), None
 
         elif self.cur_tok == T_LPAN1:
 

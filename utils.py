@@ -103,7 +103,8 @@ class Context:
     def __init__(self):
         self.builder = None
         self.merge_block = None
-        self.variables_ptr = {}
+        # variables_ptr[scope][name]["value" | "type"]
+        self.variables_ptr: list[dict[str, dict]] = []
         self.module = None
         self.suc_value = None
         # will be added later on

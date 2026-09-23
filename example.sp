@@ -1,2 +1,10 @@
 
-let a = (1 + (2)*3);
+let x = 10;
+
+if x > 10:
+	let s = "hell";
+
+elif x > 5:
+	let s = "heaven";
+
+end

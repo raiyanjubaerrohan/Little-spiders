@@ -6,7 +6,7 @@ from llvmlite.ir import (
 	PointerType,
 )
 
-class Symantics:
+class Symanticizer:
 
     def __init__(self):
         self.cur_node = None

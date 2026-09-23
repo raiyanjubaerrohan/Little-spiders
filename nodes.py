@@ -352,10 +352,10 @@ class CastFloHigh(Node):
 
 
 class VarAssignNode(Node):
-    def __init__(self, value, expr, type_):
+    def __init__(self, value, expr):
         self.value = value #the pointer
         self.expr = expr #the expression to be loaded
-        self.llvm_type = type_ #the llvm type
+        self.llvm_type = "" #the llvm type
 
 
     def __repr__(self):
@@ -378,6 +378,7 @@ class VarDeclareNode(Node):
         self.value = value #the name
         self.expr = var_expr #the binOpNode
         self.llvm_type = type_ #the type
+        self.scope = 0 #some additional data
 
 
     def codegen(self, ctx) -> Context:
@@ -387,15 +388,14 @@ class VarDeclareNode(Node):
             name=self.value
         )
 
-        ctx.variables_ptr[self.value] = {
-            "type": getCurrectType(self.llvm_type),
-            "value": ptr
+        ctx.variables_ptr[self.scope][self.value] = {
+            "value" : ptr,
+            "type": getCurrectType(self.llvm_type)
         }
-
+        
         varAssNode = VarAssignNode(ptr, self.expr, "")
 
         ctx = varAssNode.codegen(ctx)
-
         ctx.suc_value = ptr
 
         return ctx
@@ -407,9 +407,9 @@ class VarDeclareNode(Node):
 
 
 class VarFetchNode(Node):
-    def __init__(self, value, type_):
+    def __init__(self, value):
         self.value = value #the pointer
-        self.llvm_type = type_ #the type, a type instance
+        self.llvm_type = ""#the type, a type instance
 
 
     def __repr__(self):
@@ -422,7 +422,7 @@ class VarFetchNode(Node):
 
 
 # this starts a new origin
-class MyBlock:
+class DefaultBlock:
     def __init__(self):
         self.body = []
 
@@ -430,27 +430,12 @@ class MyBlock:
         return f": {self.body} end"
 
     def codegen(self, ctx) -> Context:
-        pass
-    
-
-class DefaultBlock(MyBlock):
-    def __init__(self, body: list[Node | DefaultBlock] | None = None):
-        self.body = [] if not body else body
-
-    def __repr__(self):
-        return f"default : {self.body} end"
-
-    def codegen(self, ctx) -> Context:
-        ctx.merge_block = ctx.builder.append_basic_block()
         ctx.builder.branch(ctx.merge_block)
-
-        #replace the builder
-        ctx.builder = IRBuilder(ctx.merge_block)
         
         return ctx
 
 
-class IfElseBlock(MyBlock):
+class IfElseBlock(DefaultBlock):
     def __init__(self, cond, body, else_block : DefaultBlock):
         self.cond = cond #a node instance
         self.body = body # list of nodes
@@ -464,6 +449,7 @@ class IfElseBlock(MyBlock):
         # adding nessesary blocks
         then_block = ctx.builder.append_basic_block()
         else_block = ctx.builder.append_basic_block()
+        ctx.merge_block = ctx.builder.append_basic_block()
 
         # evaluate condition
         ans = self.cond.codegen(ctx).suc_value
@@ -477,28 +463,27 @@ class IfElseBlock(MyBlock):
         for stmt in self.body:
             ctx = stmt.codegen(ctx)
 
-        then_builder = ctx.builder # preserving the builder
+        # jumping to the merge block
+        ctx.builder.branch(ctx.merge_block)
 
         # replace the builder for else
         ctx.builder = IRBuilder(else_block)
 
         ctx = self.else_block.codegen(ctx)
 
-        # then jump to merge block
-        then_builder.branch(ctx.merge_block)
+        # replace the builder for merge block
+        ctx.builder = IRBuilder(ctx.merge_block)
 
         return ctx
 
     #end
 #end
 
-class ElseBlock(MyBlock):
+class ElseBlock(DefaultBlock):
     def __init__(self, body: list[Node | DefaultBlock]):
         self.body = body
 
     def codegen(self, ctx) -> Context:
-
-        ctx.merge_block = ctx.builder.append_basic_block()
 
         for stmt in self.body:
             ctx = stmt.codegen(ctx)
@@ -506,10 +491,7 @@ class ElseBlock(MyBlock):
         # branch
         ctx.builder.branch(ctx.merge_block)
 
-        #replace the builder
-        ctx.builder = IRBuilder(ctx.merge_block)
-        
         return ctx
 
     def __repr__(self):
-        return f"else: {super().__repr__()}"
+        return f"else{super().__repr__()}"

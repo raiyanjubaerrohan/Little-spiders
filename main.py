@@ -1,6 +1,7 @@
 from parserize import Parser
-from symanticizer import Symantics
+from symantics import Symanticizer
 from utils import Context
+from resolvistics import Resolver
 import argparse
 
 from llvmlite import ir
@@ -29,10 +30,6 @@ argParser.add_argument(
 
 args = argParser.parse_args()
 
-#complete set
-parser = Parser()
-simantics = Symantics()
-
 #the module
 module = ir.Module(name= args.file if args.file else "stdmodule")
 module.triple = "aarch64-unknown-linux-android24"
@@ -56,6 +53,11 @@ ctx.builder = ir.IRBuilder(
 )
 ctx.module = module
 
+# init custom modules
+parser = Parser()
+simanticizer = Symanticizer()
+resolver = Resolver()
+
 if not args.file:
     print("error: no file input")
     exit(0)
@@ -64,7 +66,7 @@ err_msg = "compile time error : {0}"
 f = open(args.file, "r")
 theEnd = False
 
-# set the context for the parser
+# set the context for modules
 parser.set_context(ctx, f)
 
 while not theEnd:
@@ -82,8 +84,13 @@ while not theEnd:
         print(err_msg.format(err))
         exit(1)
 
-    simantics.load(tlast)
-    tpast, err = simantics.simanticize()
+    resolver.load(tlast, ctx)
+    if err := resolver.resolve():
+        print(err_msg.format(err))
+        exit(1)
+
+    simanticizer.load(tlast)
+    tpast, err = simanticizer.simanticize()
     if err:
         print(err_msg.format(err))
         exit(1)
