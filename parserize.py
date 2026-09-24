@@ -157,6 +157,9 @@ class Parser:
         elif self.cur_tok.typer == "string":
             return StringNode(self.cur_tok.value), None
 
+        elif self.cur_tok == T_IDEN:
+            return VarFetchNode(self.cur_tok.value), None
+
         elif self.cur_tok == T_LPAN1:
 
             eof, err = self.next_tok()

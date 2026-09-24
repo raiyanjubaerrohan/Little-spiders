@@ -155,7 +155,7 @@ class Symanticizer:
             llvm_type, err = self.get_currect_type()
             if err: return None, err
 
-            self.cur_node.llvm_type = llvm_type            
+            self.cur_node.llvm_type = llvm_type
             return self.cur_node, None
             #end
 
@@ -164,7 +164,7 @@ class Symanticizer:
             self.cur_node = node.value
             node, err = self.simanticize()
             if err: return None, err
-            
+
             node.llvm_type = self.get_currect_type(exp_type)
 
             return NegNode(node), None
@@ -185,7 +185,7 @@ class Symanticizer:
 
         elif isinstance(self.cur_node, IfElseBlock):
 
-            res, err = self.simanticize()
+            res, err = self.simanticize_ifElseBlock()
             if err : return None, err
 
             return res, None
@@ -199,9 +199,11 @@ class Symanticizer:
 
         elif isinstance(self.cur_node, DefaultBlock):
             return self.cur_node, None
+
+        
             
         #end
-        return None, Exception("no object matched the list")
+        return None, Exception("@symanticizer, no object matched the list")
 
     def simanticize_ifElseBlock(self) -> tuple[IfElseBlock | None, Exception | None]:
 
@@ -228,7 +230,7 @@ class Symanticizer:
         res_else_block, err = self.simanticize()
         if err: return None, err
 
-        return IfElseBlock(res_cond, stmts, res_else_block)
+        return IfElseBlock(res_cond, stmts, res_else_block), None
 
     def simanticize_ElseBlock(self):
 
@@ -274,7 +276,8 @@ class Symanticizer:
             return IntType(8).as_pointer(), None
 
         else:
-            return None, Exception("no type matched")
+            
+            return None, Exception(f"@symanticizer, no type matched")
 
     def align_type(self, lhs, rhs) -> tuple[
         Node, Node, None] | tuple[None, None, Exception

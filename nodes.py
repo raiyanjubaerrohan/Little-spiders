@@ -91,10 +91,10 @@ class StringNode(Node):
         #ensuring the null terminator
 
         zero = Constant(IntType(32), 0)
-        
+
         str_name = name_generator()
         str_type = ArrayType(IntType(8), len(self.value))
-        global_str = GlobalVariable(ctx.module, str_type,  next(str_name))
+        global_str = GlobalVariable(ctx.module, str_type, str_name)
 
         global_str.global_constant = True
         global_str.initializer = Constant(str_type, bytearray(self.value, "utf-8"))
@@ -359,7 +359,7 @@ class VarAssignNode(Node):
 
 
     def __repr__(self):
-        return f"VarAssign({self.value} = {self.expr})"
+        return f"VarAssign({self.value}:{self.llvm_type} = {self.expr})"
 
 
     def codegen(self, ctx) -> Context :
@@ -393,7 +393,7 @@ class VarDeclareNode(Node):
             "type": getCurrectType(self.llvm_type)
         }
         
-        varAssNode = VarAssignNode(ptr, self.expr, "")
+        varAssNode = VarAssignNode(ptr, self.expr)
 
         ctx = varAssNode.codegen(ctx)
         ctx.suc_value = ptr
@@ -413,7 +413,7 @@ class VarFetchNode(Node):
 
 
     def __repr__(self):
-        return f"VarFetch({self.value})"
+        return f"VarFetch({self.value}:{self.llvm_type})"
 
 
     def codegen(self, ctx) -> Context:
@@ -449,7 +449,8 @@ class IfElseBlock(DefaultBlock):
         # adding nessesary blocks
         then_block = ctx.builder.append_basic_block()
         else_block = ctx.builder.append_basic_block()
-        ctx.merge_block = ctx.builder.append_basic_block()
+        if not ctx.merge_block:
+            ctx.merge_block = ctx.builder.append_basic_block()
 
         # evaluate condition
         ans = self.cond.codegen(ctx).suc_value
@@ -460,8 +461,15 @@ class IfElseBlock(DefaultBlock):
         # building then body
         ctx.builder = IRBuilder(then_block)
 
+        # reserving
+        merg = ctx.merge_block 
+        ctx.merge_block = None
+
         for stmt in self.body:
             ctx = stmt.codegen(ctx)
+
+        # restoring
+        ctx.merge_block = merg
 
         # jumping to the merge block
         ctx.builder.branch(ctx.merge_block)

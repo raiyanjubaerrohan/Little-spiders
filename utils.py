@@ -88,11 +88,16 @@ def cutOut(l:list, start:int, end:int | bool = False):
 
     return out
 
-def name_generator():
+def get_generator():
     n = 0
     while True:
         yield "stringno"+str(n)
         n += 1
+
+names = get_generator()
+
+def name_generator():
+    return next(names)
 
 class Position:
     def __init__(self, start_pos: int = 0, end_pos: int = 1):
@@ -104,7 +109,8 @@ class Context:
         self.builder = None
         self.merge_block = None
         # variables_ptr[scope][name]["value" | "type"]
-        self.variables_ptr: list[dict[str, dict]] = []
+        # we have to put one element at least
+        self.variables_ptr: list[dict[str, dict]] = [{}]
         self.module = None
         self.suc_value = None
         # will be added later on

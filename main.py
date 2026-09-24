@@ -85,7 +85,8 @@ while not theEnd:
         exit(1)
 
     resolver.load(tlast, ctx)
-    if err := resolver.resolve():
+    ctx, err = resolver.resolve()
+    if err:
         print(err_msg.format(err))
         exit(1)
 
