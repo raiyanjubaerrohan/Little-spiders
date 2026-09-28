@@ -48,7 +48,7 @@ class Parser:
         self.cur_pos = 0
         self.node_start = 0
         self.EOE = [T_EOS]
-        self.cache: list[tuple[int, Node | MyBlock]] = []
+        self.cache: list[tuple[int, Node | DefaultBlock]] = []
         self.indent = 0
         self.lexer = Lexer()
         self.ctx = None
@@ -326,20 +326,14 @@ class Parser:
         elif err:
             return None, err
 
-        if iden in self.ctx.variables_ptr:
+        #cutting the last successful node
+        self.tokens = cutOut(self.tokens, self.node_start, end_idx)
+        #from current position to end remains
+        
+        #fix the index pointer
+        self.cur_pos = self.node_start
 
-            #cutting the last successful node
-            self.tokens = cutOut(self.tokens, self.node_start, end_idx)
-            #from current position to end remains
-
-            #fix the index pointer
-            self.cur_pos = self.node_start
-
-            return VarAssignNode(
-                self.ctx.variables_ptr[iden]["value"],
-                expression,
-                self.ctx.variables_ptr[iden]["type"]
-            ), None
+        return VarAssignNode(iden, expression), None
 
         #else
         return None, Exception(f"@parser, unknow identifier {iden}")
@@ -520,7 +514,7 @@ class Parser:
 
         return current_block, None
 
-    def router(self) -> tuple[ MyBlock | Node , Exception]:
+    def router(self) -> tuple[ DefaultBlock | Node , Exception]:
     
         #the variable declaration part
         if self.cur_tok.value == "let":

@@ -45,10 +45,10 @@ class Symanticizer:
         expr, err = self.simanticize()
         if err: return None, err
 
-        res, err = self.get_currect_type()
+        right_type, err = self.get_currect_type()
         if err: return None, err
 
-        expr.llvm_type = res
+        expr.llvm_type = right_type
 
         return VarAssignNode(node.value, expr, self.exp_type), None
 
@@ -162,20 +162,28 @@ class Symanticizer:
         elif isinstance(self.cur_node, NegNode):
             node = self.cur_node
             self.cur_node = node.value
+            
             node, err = self.simanticize()
             if err: return None, err
 
-            node.llvm_type = self.get_currect_type(exp_type)
+            right_type, err = self.get_currect_type()
+            if err: return None, err
+
+            node.llvm_type = right_type
 
             return NegNode(node), None
 
         elif isinstance(self.cur_node, PosNode):
             node = self.cur_node
             self.cur_node = node.value
+            
             node, err = self.simanticize()
             if err: return None, err
             
-            node.llvm_type = self.get_currect_type(exp_type)
+            right_type, err = self.get_currect_type()
+            if err: return None, err
+
+            node.llvm_type = right_type
 
             return PosNode(node), None
 

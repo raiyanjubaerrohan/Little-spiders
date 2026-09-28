@@ -352,10 +352,10 @@ class CastFloHigh(Node):
 
 
 class VarAssignNode(Node):
-    def __init__(self, value, expr):
+    def __init__(self, value, expr, llvm_type = ""):
         self.value = value #the pointer
         self.expr = expr #the expression to be loaded
-        self.llvm_type = "" #the llvm type
+        self.llvm_type = llvm_type #the llvm type
 
 
     def __repr__(self):
@@ -425,6 +425,7 @@ class VarFetchNode(Node):
 class DefaultBlock:
     def __init__(self):
         self.body = []
+        self.scope = 0
 
     def __repr__(self):
         return f": {self.body} end"
@@ -437,12 +438,13 @@ class DefaultBlock:
 
 class IfElseBlock(DefaultBlock):
     def __init__(self, cond, body, else_block : DefaultBlock):
-        self.cond = cond #a node instance
-        self.body = body # list of nodes
-        self.else_block = else_block
+        super().__init__()
+        self.cond = cond # a node instance
+        self.body = body # a list of nodes
+        self.else_block = else_block # the else block
 
     def __repr__(self):
-        return f"if {self.cond}: {self.body} {self.else_block}"
+        return f"if {self.cond}: {self.body} else {self.else_block}"
 
     def codegen(self, ctx) -> Context:
 
@@ -471,6 +473,9 @@ class IfElseBlock(DefaultBlock):
         # restoring
         ctx.merge_block = merg
 
+        #clean the scoping
+        ctx.variables_ptr[self.scope] = {}
+
         # jumping to the merge block
         ctx.builder.branch(ctx.merge_block)
 
@@ -489,6 +494,8 @@ class IfElseBlock(DefaultBlock):
 
 class ElseBlock(DefaultBlock):
     def __init__(self, body: list[Node | DefaultBlock]):
+        super().__init__()
+        
         self.body = body
 
     def codegen(self, ctx) -> Context:
@@ -499,7 +506,10 @@ class ElseBlock(DefaultBlock):
         # branch
         ctx.builder.branch(ctx.merge_block)
 
+        # clean the scoping
+        ctx.variables_ptr[self.scope] = {}
+
         return ctx
 
     def __repr__(self):
-        return f"else{super().__repr__()}"
+        return f"{super().__repr__()}"

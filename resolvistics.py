@@ -144,6 +144,7 @@ class Resolver:
             self.max_scope += 1
             
             self.ctx.variables_ptr.append({})
+            tree.scope = self.scope
 
             # body
             for self.cur_node in tree.body:
@@ -166,6 +167,7 @@ class Resolver:
             self.max_scope += 1
             
             self.ctx.variables_ptr.append({})
+            tree.scope = self.scope
 
             # body
             for self.cur_node in tree.body:
