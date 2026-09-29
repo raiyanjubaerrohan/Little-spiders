@@ -425,7 +425,6 @@ class VarFetchNode(Node):
 class DefaultBlock:
     def __init__(self):
         self.body = []
-        self.scope = 0
 
     def __repr__(self):
         return f": {self.body} end"
@@ -438,7 +437,6 @@ class DefaultBlock:
 
 class IfElseBlock(DefaultBlock):
     def __init__(self, cond, body, else_block : DefaultBlock):
-        super().__init__()
         self.cond = cond # a node instance
         self.body = body # a list of nodes
         self.else_block = else_block # the else block
@@ -473,9 +471,6 @@ class IfElseBlock(DefaultBlock):
         # restoring
         ctx.merge_block = merg
 
-        #clean the scoping
-        ctx.variables_ptr[self.scope] = {}
-
         # jumping to the merge block
         ctx.builder.branch(ctx.merge_block)
 
@@ -494,8 +489,6 @@ class IfElseBlock(DefaultBlock):
 
 class ElseBlock(DefaultBlock):
     def __init__(self, body: list[Node | DefaultBlock]):
-        super().__init__()
-        
         self.body = body
 
     def codegen(self, ctx) -> Context:
@@ -505,9 +498,6 @@ class ElseBlock(DefaultBlock):
 
         # branch
         ctx.builder.branch(ctx.merge_block)
-
-        # clean the scoping
-        ctx.variables_ptr[self.scope] = {}
 
         return ctx
 

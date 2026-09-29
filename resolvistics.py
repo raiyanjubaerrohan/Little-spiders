@@ -31,7 +31,16 @@ class Resolver:
 
     def load(self, ast, ctx: Context):
         self.cur_node = ast
-        self.ctx = ctx 
+        self.ctx = ctx
+
+        # removing all the items except first one
+        fir = self.ctx.variables_ptr[0]
+        self.ctx.variables_ptr = []
+
+        self.ctx.variables_ptr.append(fir)
+
+        # we did not remove the first one
+        # because it will later ruin the global scope
 
     def resolve(self) -> tuple[
         Context | None,
@@ -144,7 +153,6 @@ class Resolver:
             self.max_scope += 1
             
             self.ctx.variables_ptr.append({})
-            tree.scope = self.scope
 
             # body
             for self.cur_node in tree.body:
@@ -167,7 +175,6 @@ class Resolver:
             self.max_scope += 1
             
             self.ctx.variables_ptr.append({})
-            tree.scope = self.scope
 
             # body
             for self.cur_node in tree.body:
