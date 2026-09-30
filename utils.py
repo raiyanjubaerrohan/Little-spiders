@@ -62,9 +62,6 @@ def getCurrectType(ty) -> str:
         if ty.width == 8 : return "char"
         if ty.width == 1 : return "bool"
 
-    elif isinstance(ty, HalfType):
-        return "half"
-
     elif isinstance(ty, FloatType):
         return "float"
 
@@ -108,9 +105,18 @@ class Context:
     def __init__(self):
         self.builder = None
         self.merge_block = None
-        # variables_ptr[scope][name]["value" | "type"]
+        # variables_ptr[scope][name]
         # we have to put one element at least
-        self.variables_ptr: list[dict[str, dict]] = [{}]
         self.module = None
         self.suc_value = None
         # will be added later on
+
+
+class Symbol:
+    def __init__(self):
+        self.name = None
+        self.llvm_type = None
+        self.ptr = None
+
+    def __repr__(self):
+        return f"Sym({self.name}=>{self.llvm_type} at {self.ptr})"

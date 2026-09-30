@@ -71,6 +71,7 @@ parser.set_context(ctx, f)
 
 while not theEnd:
 
+    # the paring area
     tlast, err = parser.parse()
 
     if tlast == "theend":
@@ -84,18 +85,20 @@ while not theEnd:
         print(err_msg.format(err))
         exit(1)
 
-    resolver.load(tlast, ctx)
-    ctx, err = resolver.resolve()
-    if err:
+    # the resolver area
+    resolver.load(tlast)
+    if err := resolver.resolve():
         print(err_msg.format(err))
         exit(1)
 
+    # the simantics area
     simanticizer.load(tlast)
     tpast, err = simanticizer.simanticize()
     if err:
         print(err_msg.format(err))
         exit(1)
 
+    # the codegen line
     ctx = tpast.codegen(ctx)
 
 f.close()

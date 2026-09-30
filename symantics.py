@@ -6,6 +6,8 @@ from llvmlite.ir import (
 	PointerType,
 )
 
+from utils import getCurrectType
+
 class Symanticizer:
 
     def __init__(self):
@@ -18,7 +20,7 @@ class Symanticizer:
     def simanticize_varDecNode(self) -> tuple[Node | None, Exception | None]:
         varDec = self.cur_node
         self.cur_node = varDec.expr
-        self.exp_type = varDec.llvm_type
+        self.exp_type = varDec.value.llvm_type
 
         expr, err = self.simanticize()
         if err: return None, err
@@ -27,30 +29,31 @@ class Symanticizer:
             res, err = self.get_currect_type()
             if err: return None, err
 
-            varDec.llvm_type = res
+            varDec.value.llvm_type = res
             expr.llvm_type = res
 
             varDec.expr = expr
 
             return varDec, None
 
-        return None, Exception("can not find a type for the variable")
+        return None, Exception("@symanticizer, can not find a type for the variable")
 
     def simanticize_varAssNode(self) -> tuple[Node | None, Exception | None]:
 
         node = self.cur_node
-        self.exp_type = node.llvm_type
+        self.exp_type = getCurrectType(
+            node.value.llvm_type
+        )
 
         self.cur_node = node.expr
         expr, err = self.simanticize()
         if err: return None, err
 
-        right_type, err = self.get_currect_type()
-        if err: return None, err
+        # I do not need the right type,
+        # because I have one in 
+        # node.value.llvm_type
 
-        expr.llvm_type = right_type
-
-        return VarAssignNode(node.value, expr, self.exp_type), None
+        return VarAssignNode(node.value, expr), None
 
     def simanticize_binOpNode(self):
 
@@ -61,14 +64,14 @@ class Symanticizer:
         res_lhs, err = self.simanticize()
         if err: return None, err
         elif self.exp_type == "string":
-            return None, Exception("can not do operation with string")
+            return None, Exception("@symanticizer, can not do operation with string")
 
         ### rhs
         self.cur_node = tree.rhs
         res_rhs, err = self.simanticize()
         if err: return None, err
         elif self.exp_type == "string":
-            return None, Exception("can not do operation with string")
+            return None, Exception("@symanticizer, can not do operation with string")
 
         ty_lhs, ty_rhs, err = self.align_type(
             res_lhs,
@@ -149,7 +152,7 @@ class Symanticizer:
 
             return res, None
 
-        elif isinstance(self.cur_node, (ConstantNode, VarFetchNode)):
+        elif isinstance(self.cur_node, ConstantNode):
             self.exp_type = self.cur_node.llvm_type
 
             llvm_type, err = self.get_currect_type()
@@ -158,6 +161,16 @@ class Symanticizer:
             self.cur_node.llvm_type = llvm_type
             return self.cur_node, None
             #end
+
+        elif isinstance(self.cur_node, VarFetchNode):
+            # there is no need to convert varFetchNode
+            # it is already there
+            # but we have to reverse it
+            self.cur_node.llvm_type = getCurrectType(
+                self.cur_node.value.llvm_type
+            )
+            
+            return self.cur_node, None
 
         elif isinstance(self.cur_node, NegNode):
             node = self.cur_node

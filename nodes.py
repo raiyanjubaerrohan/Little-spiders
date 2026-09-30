@@ -4,7 +4,7 @@ from llvmlite.ir import (
     FloatType,
     Constant,
     ArrayType,
-    IRBuilder, 
+    IRBuilder,
     GlobalVariable,
 )
 
@@ -352,10 +352,9 @@ class CastFloHigh(Node):
 
 
 class VarAssignNode(Node):
-    def __init__(self, value, expr, llvm_type = ""):
-        self.value = value #the pointer
+    def __init__(self, value, expr):
+        self.value = value #the symbol instance
         self.expr = expr #the expression to be loaded
-        self.llvm_type = llvm_type #the llvm type
 
 
     def __repr__(self):
@@ -366,8 +365,8 @@ class VarAssignNode(Node):
 
         ctx.suc_value = ctx.builder.store(
             self.expr.codegen(ctx).suc_value,
-            self.value,
-            align=self.value.align
+            self.value.ptr,
+            align=self.value.ptr.align
         )
 
         return ctx
@@ -375,28 +374,24 @@ class VarAssignNode(Node):
 
 class VarDeclareNode(Node):
     def __init__(self, value,  type_ = 0, var_expr = 0):
-        self.value = value #the name
-        self.expr = var_expr #the binOpNode
-        self.llvm_type = type_ #the type
-        self.scope = 0 #some additional data
+        self.value = value #the symbol instance
+        self.expr = var_expr #the expression
+        self.llvm_type = type_ #the type, temporary
 
 
     def codegen(self, ctx) -> Context:
 
-        ptr = ctx.builder.alloca(
-            self.llvm_type,
-            name=self.value
+        self.value.ptr = ctx.builder.alloca(
+            self.value.llvm_type,
+            name=self.value.name
         )
 
-        ctx.variables_ptr[self.scope][self.value] = {
-            "value" : ptr,
-            "type": getCurrectType(self.llvm_type)
-        }
+        self.value.llvm_type = getCurrectType(self.value.llvm_type)
         
-        varAssNode = VarAssignNode(ptr, self.expr)
+        varAssNode = VarAssignNode(self.value, self.expr)
 
         ctx = varAssNode.codegen(ctx)
-        ctx.suc_value = ptr
+        ctx.suc_value = self.value.ptr
 
         return ctx
 
@@ -408,8 +403,8 @@ class VarDeclareNode(Node):
 
 class VarFetchNode(Node):
     def __init__(self, value):
-        self.value = value #the pointer
-        self.llvm_type = ""#the type, a type instance
+        self.value = value #the symbol instance
+        self.llvm_type = ""#the type, temporary
 
 
     def __repr__(self):
@@ -417,7 +412,11 @@ class VarFetchNode(Node):
 
 
     def codegen(self, ctx) -> Context:
-        ctx.suc_value = ctx.builder.load(self.value, align=self.value.align)
+        ctx.suc_value = ctx.builder.load(
+            self.value.ptr,
+            align=self.value.ptr.align
+        )
+        
         return ctx
 
 

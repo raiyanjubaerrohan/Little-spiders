@@ -4,5 +4,4 @@ test/
 tester.ll
 tester
 t.py
-Compiler.md
-borok_plugs/
+commit.sh
