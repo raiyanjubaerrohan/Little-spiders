@@ -16,6 +16,7 @@ from utils import (
     T_NEQ,
     T_ARROW,
     T_COLON,
+    T_COMMA,
     T_EOS,
     T_EQ,
     T_EQS,
@@ -119,7 +120,7 @@ class Lexer:
                 tokens.append(Token(T_DIV, pos))
                 self.next_chr()
 
-            elif self.cur == "%":
+            elif self.cur == '%':
                 pos = Position(self.pos, self.pos+1)
                 tokens.append(Token(T_MOD, pos))
                 self.next_chr()
@@ -132,6 +133,11 @@ class Lexer:
             elif self.cur == ':':
                 pos = Position(self.pos, self.pos+1)
                 tokens.append(Token(T_COLON, pos))
+                self.next_chr()
+
+            elif self.cur == ',':
+                pos = Position(self.pos, self.pos+1)
+                tokens.append(Token(T_COMMA, pos))
                 self.next_chr()
 
             elif self.cur in ('=','!'):

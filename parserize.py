@@ -9,6 +9,7 @@ from nodes import (
     VarFetchNode,
     VarAssignNode,
     VarDeclareNode,
+    CallNode,
     IfElseBlock,
     DefaultBlock,
     ElseBlock,
@@ -18,7 +19,6 @@ from utils import (
     T_EOS,
     T_IDEN,
     T_EQ,
-    cutOut,
     T_EQS,
     T_NEQ,
     T_LT,
@@ -30,6 +30,7 @@ from utils import (
     T_LPAN1,
     T_LITERAL,
     T_COLON,
+    T_COMMA,
     T_ADD,
     T_SUB,
     T_MUL,
@@ -45,7 +46,7 @@ class Parser:
     def __init__(self):
         self.tokens:list[Token] = []
         self.cur_tok = None
-        self.cur_pos = 0
+        self.cur_pos = -1
         self.node_start = 0
         self.EOE = [T_EOS]
         self.cache: list[tuple[int, Node | DefaultBlock]] = []
@@ -53,6 +54,12 @@ class Parser:
         self.lexer = Lexer()
         self.ctx = None
         self.file = None
+
+    def start_up(self):
+        self.cur_pos = -1
+        self.cur_tok = None
+
+        return self.next_tok()
 
     def consume(self) -> Exception | None:
         line = self.file.read()
@@ -137,16 +144,21 @@ class Parser:
         return left, None
 
 
-    def factor(self):
+    def factor(self) -> tuple[Node | None, Exception | None]:
 
         if self.cur_tok.type in (T_ADD, T_SUB):
+            sign = True if self.cur_tok == T_ADD else False
 
             eof, err = self.next_tok()
 
             if eof: return "theend", Exception("@parser, excepted more tokens")
             if err: return None, err
 
-            return self.factor()
+            res, err = self.factor()
+            if err: return None, err
+
+            if sign: return PosNode(res), None
+            return NegNode(res), None
 
         elif self.cur_tok.typer in ("int", "float"):
             return ConstantNode(
@@ -173,13 +185,9 @@ class Parser:
             
             if self.cur_tok == T_RPAN1:
                 return res, None
-            else:
-                return None, Exception("@parser, found no closing paranthisis!")
+            return None, Exception("@parser, found no closing paranthisis!")
 
-        else:
-            return None, Exception(f"@parser, unknown prefix or operand {self.cur_tok}!")
-        
-
+        return None, Exception(f"@parser, unknown prefix or operand {self.cur_tok}!")
 
     def get_binding_power(self, op) -> tuple[int, int, Exception | None]:
 
@@ -292,11 +300,6 @@ class Parser:
         if var_type:
             varDecNode.llvm_type = var_type
 
-        #cutting the privious successful node
-        self.tokens = cutOut(self.tokens, self.node_start, end_idx)
-        #from current index to the end
-        self.cur_pos = self.node_start
-
         return varDecNode, None
 
 
@@ -320,23 +323,10 @@ class Parser:
 
         end_idx = self.cur_pos
         eof, err = self.next_tok() #consume EOS
-
-        if eof:
-            return "theend", None
-        elif err:
+        if err:
             return None, err
 
-        #cutting the last successful node
-        self.tokens = cutOut(self.tokens, self.node_start, end_idx)
-        #from current position to end remains
-        
-        #fix the index pointer
-        self.cur_pos = self.node_start
-
         return VarAssignNode(iden, expression), None
-
-        #else
-        return None, Exception(f"@parser, unknow identifier {iden}")
 
     def parse_if(self):
     
@@ -380,7 +370,7 @@ class Parser:
         while self.cur_tok.value not in (
             "end", "elif", "else"
         ):
-            res, err = self.router()
+            res, err = self.parse()
 
             if res == 'theend':
                 return res, err
@@ -406,11 +396,6 @@ class Parser:
                 continue
 
             idx += 1
-
-        # cut out
-        self.tokens = cutOut(self.tokens, start_pos, self.cur_pos-1)
-        # fix the position pointer
-        self.cur_pos = start_pos
         
         #branch checking
         if self.cur_tok.value == "elif":
@@ -445,10 +430,6 @@ class Parser:
         if err:
             return None, err
 
-        self.tokens = cutOut(self.tokens, end_idx, end_idx)
-        # fixing the pointer
-        self.cur_pos = end_idx
-
         return current_block, None
     #end
 
@@ -475,7 +456,7 @@ class Parser:
         start_pos = self.node_start
 
         while self.cur_tok.value != "end":
-            res, err = self.router()
+            res, err = self.parse()
 
             if res == 'theend': 
                 return res, Exception("@parser, excepted at least \"end\" to close the if block")
@@ -508,14 +489,69 @@ class Parser:
         if err:
             return None, err
 
-        # cut out
-        self.tokens = cutOut(self.tokens, start_pos, end_pos)
-        self.cur_pos = start_pos
-
         return current_block, None
 
-    def router(self) -> tuple[ DefaultBlock | Node , Exception]:
-    
+    def parse_call(self, iden):
+
+        err_msg = ("@parser, expected more tokens to "+
+        "complete the call parsing")
+
+        eof, err = self.next_tok()
+        if eof: return "theend", Exception(err_msg)
+        if err: return None, err
+
+        # preserve the eoe and assign new one
+        pre_eoe = self.EOE
+        self.EOE = [T_RPAN1, T_COMMA]
+
+        params = []
+        if self.cur_tok != T_RPAN1:
+
+            while True:
+                # error check for looping
+                if self.cur_tok == T_RPAN1:
+                    return None, Exception(
+                        "@parsar, we expect one more expression "
+                        "after comma but you have forgotten "
+                        "to put an expression after comma "
+                        "inside a function call"
+                    )
+                    
+                res, err = self.expr()
+                if res == "theend": return res, err
+                if err: return None, err
+
+                params.append(res)
+
+                if self.cur_tok == T_RPAN1:
+                    break
+
+                if self.cur_tok == T_COMMA:
+                    eof, err = self.next_tok()
+                    if eof: return "theend", Exception(err_msg)
+                    if err: return None, err
+
+            eof, err = self.next_tok()
+            if eof: return "theend", Exception("expected at least one semicolon")
+
+        if err := self.expect(T_EOS):
+            return None, err
+
+        # consume the eos
+        eof, err = self.next_tok()
+        if err: return None, err
+
+        #restoring eoe
+        self.EOE = pre_eoe
+        
+        return CallNode(iden, params), None
+
+
+    def parse(self) -> tuple[ DefaultBlock | Node | None, Exception | None]:
+
+        if self.cur_tok == T_EOF:
+            return "theend", None
+        
         #the variable declaration part
         if self.cur_tok.value == "let":
             self.node_start = self.cur_pos
@@ -544,29 +580,15 @@ class Parser:
             elif err:
                 return None, err
 
-            #means this is a assign node
+            #means this is an assign node
             if self.cur_tok == T_EQ:
                 return self.parse_assign(iden_name)
 
+            #means this is a calling node
+            if self.cur_tok == T_LPAN1:
+                return self.parse_call(iden_name)
+
         return self.expr()
-
-
-    def parse(self) -> tuple[Node | None, Exception | None]:
-
-        if err := self.consume():
-            return None, err
-
-        self.cur_pos = -1
-        #one step before the original
-        #because it will currect itself
-        eof, err = self.next_tok()
-
-        if eof:
-            return "theend", None
-        elif err:
-            return None, err
-
-        return self.router()
 
     #end function
 

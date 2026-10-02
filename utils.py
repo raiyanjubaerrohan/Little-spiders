@@ -1,4 +1,10 @@
-from llvmlite.ir import IntType, HalfType, FloatType, DoubleType
+from llvmlite.ir import (
+    IntType,
+    HalfType,
+    FloatType,
+    DoubleType,
+    PointerType,
+)
 
 T_ADD       = "ADD"
 T_SUB       = "SUB"
@@ -20,6 +26,7 @@ T_QUS       = "QUS"
 T_EOS       = "EOS"
 T_EOF       = "EOF"
 T_COLON     = "COLON"
+T_COMMA     = "COMMA"
 T_SQUTE     = "SQUTE"
 
 T_LPAN1     = "LPAN1"
@@ -68,22 +75,16 @@ def getCurrectType(ty) -> str:
     elif isinstance(ty, DoubleType):
         return "double"
 
+    elif isinstance(ty, PointerType):
+
+        res = getCurrectType(ty.pointee)
+
+        if res == "": return ""
+        elif res == "char": return "string"
+        else: return res + "ptr"
+        
     #else
     return ""
-
-def cutOut(l:list, start:int, end:int | bool = False):
-
-    if not end and isinstance(end, bool): end = len(l) - 1 # the last index
-
-    out = []
-    
-    for i in range(len(l)):
-
-        # if not in range
-        if not (i >= start and i <= end):
-            out.append(l[i])
-
-    return out
 
 def get_generator():
     n = 0
@@ -105,12 +106,21 @@ class Context:
     def __init__(self):
         self.builder = None
         self.merge_block = None
-        # variables_ptr[scope][name]
+        self.function_ptr: FunctionInfo = {}
         # we have to put one element at least
         self.module = None
         self.suc_value = None
         # will be added later on
 
+# the structure for function_ptr
+#{
+#    "value": ptr,
+#    "type": {
+#        "ret_type": "int",
+#        "params_type": ["string", "int"],
+#        "var_arg": True
+#    }
+#}
 
 class Symbol:
     def __init__(self):

@@ -355,7 +355,7 @@ class VarAssignNode(Node):
     def __init__(self, value, expr):
         self.value = value #the symbol instance
         self.expr = expr #the expression to be loaded
-
+        self.llvm_type = ""
 
     def __repr__(self):
         return f"VarAssign({self.value}:{self.llvm_type} = {self.expr})"
@@ -419,6 +419,25 @@ class VarFetchNode(Node):
         
         return ctx
 
+class CallNode(Node):
+    def __init__(self, value, params):
+        self.value = value # the name, later the ptr
+        self.params = params # the paramiters
+        self.llvm_type = "" # the return type, str
+
+    def __repr__(self):
+        return f"Call:{self.value}({self.params})->{self.llvm_type}"
+
+    def codegen(self, ctx):
+        # eval params
+        params = []
+
+        for p in self.params:
+            params.append(p.codegen(ctx).suc_value)
+            
+        ctx.suc_value = ctx.builder.call(self.value, params)
+
+        return ctx
 
 # this starts a new origin
 class DefaultBlock:

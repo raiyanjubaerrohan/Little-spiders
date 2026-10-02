@@ -15,6 +15,7 @@ from nodes import (
     VarAssignNode,
     VarDeclareNode,
     VarFetchNode,
+    CallNode,
     DefaultBlock,
     IfElseBlock,
     ElseBlock,
@@ -28,15 +29,15 @@ class Resolver:
         self.scope = 0
         self.variables_ptr = [{}]
 
-    def load(self, ast):
+    def load(self, ast, ctx):
         self.cur_node = ast
+        self.ctx = ctx
 
         # removing all the items except first one
         fir = self.variables_ptr[0]
         self.variables_ptr = []
 
         self.variables_ptr.append(fir)
-
         # we did not remove the first one
         # because it will later ruin the global scope
 
@@ -47,6 +48,24 @@ class Resolver:
             self.cur_node = tree.value
 
             return self.resolve()
+
+        elif isinstance(tree, CallNode):
+            # first resolve the params
+            for self.cur_node in tree.params:
+                if err := self.resolve(): return err
+
+            # now the value and return type
+            if tree.value in self.ctx.function_ptr:
+
+                tree.llvm_type = (self.ctx.
+                    function_ptr[tree.value]["type"])
+
+                tree.value = (self.ctx.
+                    function_ptr[tree.value]["value"])
+
+                return None
+            else:
+                return Exception(f"@resolver, there is no such function as {tree.value}")
 
         elif isinstance(tree, (BinOpNode, CompareNode)):
 
@@ -92,7 +111,7 @@ class Resolver:
             # means, it is an exception
 
             return Exception(
-                "the variable {tree.value} is not declared "
+                f"the variable {tree.value} is not declared "
                 "or not valid on this scope"
             )
 
@@ -127,7 +146,7 @@ class Resolver:
 
             # same reason as varAssignNode
             return Exception(
-                "the variable {tree.value} is not declared "
+                f"the variable {tree.value} is not declared "
                 "or not valid on this scope"
             )
 
@@ -158,7 +177,7 @@ class Resolver:
             # increse the scope
             self.scope += 1
 
-            self.ctx.variables_ptr.append({})
+            self.variables_ptr.append({})
 
             # body
             for self.cur_node in tree.body:

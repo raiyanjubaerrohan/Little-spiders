@@ -45,6 +45,17 @@ mainfunc = ir.Function(
     "main"
 )
 
+# printf function (build-in)
+printFunc = ir.Function(
+    module,
+    ir.FunctionType(
+        ir.IntType(32),
+        (ir.IntType(8).as_pointer(), ),
+        var_arg=True
+    ),
+    "printf"
+)
+
 #context
 ctx = Context()
 
@@ -52,6 +63,16 @@ ctx.builder = ir.IRBuilder(
     mainfunc.append_basic_block(name="entry")
 )
 ctx.module = module
+
+# the function entry
+ctx.function_ptr["print"] = {
+    "value": printFunc,
+    "type": {
+        "ret_type": "int",
+        "params_type": ["string"],
+        "var_args": True
+    }
+}
 
 # init custom modules
 parser = Parser()
@@ -68,10 +89,18 @@ theEnd = False
 
 # set the context for modules
 parser.set_context(ctx, f)
+pexit, err = parser.start_up()
+if pexit:
+    print("there is nothing to parse!!")
+    exit(0)
+
+if err:
+    print(err_msg.format(err))
+    exit(1)
 
 while not theEnd:
 
-    # the paring area
+    # the parsing area
     tlast, err = parser.parse()
 
     if tlast == "theend":
@@ -86,13 +115,13 @@ while not theEnd:
         exit(1)
 
     # the resolver area
-    resolver.load(tlast)
+    resolver.load(tlast, ctx)
     if err := resolver.resolve():
         print(err_msg.format(err))
         exit(1)
 
     # the simantics area
-    simanticizer.load(tlast)
+    simanticizer.load(tlast, ctx)
     tpast, err = simanticizer.simanticize()
     if err:
         print(err_msg.format(err))
