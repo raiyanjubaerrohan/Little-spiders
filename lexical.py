@@ -30,7 +30,6 @@ from utils import (
     ALPHABETS,
     Position,
     keywords,
-    
 )
 
 class Token:
@@ -52,7 +51,7 @@ class Token:
     def __eq__(self, other):
         return self.type == other
 
-    def __ne__(self, other): 
+    def __ne__(self, other):
         return self.type != other
 
 
@@ -74,15 +73,15 @@ class Lexer:
         #end
 
     def lex(self, text: str) -> tuple[list[Token] | None, Exception | None]:
-    
+
         tokens: list[Token] = []
         self.text = text
         self.pos = -1
         self.cur = None
-        
         self.next_chr()
 
         while self.cur != None:
+
             if self.cur in ALPHABETS+'_':
                 tokens.append(self.makeIdentifier())
 
@@ -182,20 +181,44 @@ class Lexer:
                 self.next_chr()
 
             elif self.cur == '"':
-                tokens.append(self.makeString())
+                string, err = self.makeString()
+                if err: return None, err
+                tokens.append(string)
 
             elif self.cur == "'":
-                pos = Position(self.pos, self.pos+1)
-                tokens.append(Token(T_SQUTE, pos))
-                self.next_chr()
 
+                start = self.pos
+                self.next_chr() # consume the '
+
+                res, err = self.makeEscapeSequence()
+                if err: return None, err
+
+                if res:
+                    tokens.append(Token(
+                        T_SQUTE,
+                        Position(start, self.pos),
+                        res,
+                        "char"
+                    ))
+                    self.next_chr()
+
+                else:
+                    tokens.append(Token(
+                        T_SQUTE,
+                        Position(start, self.pos+1),
+                        self.cur,
+                        "char"
+                    ))
+
+                # common
+                self.next_chr()
 
             elif self.cur == ";":
                 pos = Position(self.pos, self.pos+1)
                 tokens.append(Token(T_EOS, pos))
                 self.next_chr()
 
-            else: 
+            else:
                 return None, Exception(f"@lexer, invalid token '{self.cur}'")
 
         return tokens, None
@@ -225,8 +248,6 @@ class Lexer:
 
         pos = Position(start_pos, self.pos)
         return Token(T_GT, pos)
-                
-        
 
     def makeEqs(self):
         eqs = ''
@@ -260,9 +281,9 @@ class Lexer:
         have_error = False
         start_pos = self.pos
 
-        while (self.cur != None 
+        while (self.cur != None
         and self.cur in NUMBERS+'.'):
-            
+
             if self.cur == '.': dots+= 1
             if dots > 1: have_error = True
 
@@ -270,7 +291,7 @@ class Lexer:
             self.next_chr()
 
         pos = Position(start_pos, self.pos)
-        
+
         if have_error:
             return None, Exception(f"@lexer, invalid number {num_str}")
 
@@ -288,37 +309,59 @@ class Lexer:
         start_pos = self.pos
         self.next_chr()
         string = ''
-        
+
         while self.cur not in (None, '"'):
-            
-            string += self.cur
+
+            res, err = self.makeEscapeSequence()
+            if err: return None, err
+
+            if res: string += res
+            else: string += self.cur
+
             self.next_chr()
-            
 
         self.next_chr()
 
         pos = Position(start_pos, self.pos)
 
-        return Token(T_LITERAL, pos, str(string), "string")
+        return Token(T_LITERAL, pos, str(string), "string"), None
 
+    def makeEscapeSequence(self):
+
+        if self.cur == '\\':
+            self.next_chr()
+
+            if self.cur == 'n': return '\n', None
+            if self.cur == 't': return '\t', None
+            if self.cur == '"': return '\'', None
+            if self.cur == "'": return '\"', None
+            if self.cur == '\\': return '\\',None
+            else: return None, Exception(f"@lexer, unknown escape sequence \\{self.cur}")
+
+        return None, None
 
     def makeIdentifier(self):
         iden = ''
-        
+
         start_pos = self.pos
 
-        while (self.cur != None 
+        while (self.cur != None
         and self.cur in ALPHABETS+'_'+NUMBERS):
             iden += self.cur
 
             self.next_chr()
-            
+
         pos = Position(start_pos, self.pos)
 
         if iden in keywords:
             return Token(T_KEY, pos, str(iden))
 
         if iden in ("true", "false"):
-            return Token(T_LITERAL, pos, str(iden), "bool")
+            return Token(
+                T_LITERAL, 
+                pos, 
+                True if iden == "true" else False,
+                "bool"
+            )
 
         return Token(T_IDEN, pos, str(iden))

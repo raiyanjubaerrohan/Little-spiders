@@ -114,6 +114,8 @@ while not theEnd:
         print(err_msg.format(err))
         exit(1)
 
+    print(tlast, '\n')
+
     # the resolver area
     resolver.load(tlast, ctx)
     if err := resolver.resolve():

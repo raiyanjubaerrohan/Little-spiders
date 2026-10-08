@@ -88,6 +88,7 @@ class Symanticizer:
             varDec.value.llvm_type, expr.llvm_type
         )
         if err: return None, err
+        
         #lastly assign the compatable result
         varDec.expr = comp_res
         varDec.value.llvm_type = comp_res.llvm_type
@@ -97,11 +98,8 @@ class Symanticizer:
     def simanticize_varAssNode(self) -> tuple[Node | None, Exception | None]:
 
         node = self.cur_node
-        llvm_type = getCurrectType(
-            node.value.llvm_type
-        )
 
-        self.exp_type = llvm_type
+        self.exp_type = node.value.llvm_type
         self.cur_node = node.expr
 
         expr, err = self.simanticize()
@@ -109,7 +107,7 @@ class Symanticizer:
 
         self.cur_node = expr
         comp_res, err = self.make_compatible(
-            llvm_type, expr.llvm_type
+            node.value.llvm_type, expr.llvm_type
         )
 
         # I do not need the right type,
@@ -213,7 +211,7 @@ class Symanticizer:
 
             return res, None
 
-        elif isinstance(self.cur_node, ConstantNode):
+        elif isinstance(self.cur_node, (ConstantNode, BitNode)):
 
             self.exp_type = self.cur_node.llvm_type
 
@@ -390,6 +388,8 @@ class Symanticizer:
         self.cur_node = if_block.cond
         res_cond, err = self.simanticize()
         if err: return None, err
+
+        res_cond.llvm_type = IntType(1) #currecting the type
 
         # the body
         stmts = []
@@ -635,6 +635,13 @@ class Symanticizer:
             **type_casting[target]
         )
         if err: return None, err
+
+        # get currect type
+        self.exp_type = typed_res.llvm_type
+        llvm_type, err = self.get_currect_type()
+        if err: return None, err
+
+        typed_res.llvm_type = llvm_type
 
         # return the type
         return typed_res, None

@@ -78,6 +78,20 @@ class ConstantNode(Node):
 
         return ctx
 
+class BitNode(Node):
+    def __init__(self, value: bool):
+        self.value = value
+        self.llvm_type = "bool"
+
+    def __repr__(self):
+        return f"Bit({self.value})"
+
+    def codegen(self, ctx):
+        print(self.llvm_type)
+        ctx.suc_value = Constant(self.llvm_type, self.value)
+
+        return ctx
+
 class StringNode(Node):
     def __init__(self, value):
         self.value = value
