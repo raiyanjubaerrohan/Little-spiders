@@ -31,7 +31,6 @@ from utils import (
     T_LPAN1,
     T_RPAN2,
     T_LPAN2,
-    T_LITERAL,
     T_COLON,
     T_COMMA,
     T_ADD,
@@ -169,6 +168,12 @@ class Parser:
                 self.cur_tok.typer
             ), None
 
+        elif self.cur_tok.typer == "char":
+            return ConstantNode(
+                ord(self.cur_tok.value),
+                self.cur_tok.typer
+            ), None
+
         elif self.cur_tok.typer == "string":
             return StringNode(self.cur_tok.value), None
 
@@ -204,7 +209,7 @@ class Parser:
             return 7, 8, None
 
         elif op.type in (
-            T_EQ, T_EQS,
+            T_NEQ, T_EQS,
             T_LT, T_LTE,
             T_GT, T_GTE
         ): return 3, 4, None
@@ -286,8 +291,6 @@ class Parser:
         if err := self.expect(T_EOS):
             return None, err
 
-
-        end_idx = self.cur_pos
         eof, err = self.next_tok() #consume EOS
 
         if err:
@@ -327,7 +330,6 @@ class Parser:
         if err := self.expect(T_EOS):
             return None, err
 
-        end_idx = self.cur_pos
         eof, err = self.next_tok() #consume EOS
         if err:
             return None, err
@@ -344,7 +346,6 @@ class Parser:
         pre_eoe = self.EOE
         self.EOE = [T_LPAN2]
 
-        start_pos = self.node_start
         cond_expr, err = self.expr()
 
         if cond_expr == 'theend': return cond_expr, err

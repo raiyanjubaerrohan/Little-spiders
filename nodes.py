@@ -87,7 +87,6 @@ class BitNode(Node):
         return f"Bit({self.value})"
 
     def codegen(self, ctx):
-        print(self.llvm_type)
         ctx.suc_value = Constant(self.llvm_type, self.value)
 
         return ctx
@@ -134,27 +133,26 @@ class BinOpNode(Node):
         rs = self.rhs.codegen(ctx).suc_value
 
         if isinstance(self.llvm_type, IntType):
+
             if self.value == T_ADD:
                 ctx.suc_value = ctx.builder.add(ls, rs)
-                return ctx
 
             elif self.value == T_SUB:
                 ctx.suc_value = ctx.builder.sub(ls, rs)
-                return ctx
 
             elif self.value == T_MUL:
                 ctx.suc_value = ctx.builder.mul(ls, rs)
-                return ctx
 
             elif self.value == T_DIV:
                 ctx.suc_value = ctx.builder.sdiv(ls, rs)
-                return ctx
 
             elif self.value == T_MOD:
                 ctx.suc_value = ctx.builder.srem(ls, rs)
-                return ctx
 
-            raise Exception("not a valid operation")
+            else:
+                raise Exception("not a valid operation")
+
+            return ctx
 
         #these all returns from the function
         #if self.llvm_type is not IntType
@@ -162,25 +160,23 @@ class BinOpNode(Node):
 
         if self.value == T_ADD:
             ctx.suc_value = ctx.builder.fadd(ls, rs)
-            return ctx
 
         elif self.value == T_SUB:
             ctx.suc_value = ctx.builder.fsub(ls, rs)
-            return ctx
 
         elif self.value == T_MUL:
             ctx.suc_value = ctx.builder.fmul(ls, rs)
-            return ctx
             
         elif self.value == T_DIV:
             ctx.suc_value = ctx.builder.fdiv(ls, rs)
-            return ctx
 
         elif self.value == T_MOD:
             ctx.suc_value = ctx.builder.frem(ls, rs)
-            return ctx
+                
+        else:
+            raise Exception("not a valid operation")
 
-        raise Exception("not a valid operation")
+        return ctx
 
 
 #this ia same as BinOpNode
@@ -203,58 +199,50 @@ class CompareNode(Node):
 
             if self.value == T_EQS:
                 ctx.suc_value = ctx.builder.icmp_signed('==', ls, rs)
-                return ctx
 
             elif self.value == T_NEQ:
                 ctx.suc_value = ctx.builder.icmp_signed('!=', ls, rs)
-                return ctx
 
             elif self.value == T_LT:
                 ctx.suc_value = ctx.builder.icmp_signed('<', ls, rs)
-                return ctx
 
             elif self.value == T_LTE:
                 ctx.suc_value = ctx.builder.icmp_signed('<=', ls, rs)
-                return ctx
 
             elif self.value == T_GT:
                 ctx.suc_value = ctx.builder.icmp_signed('>', ls, rs)
-                return ctx
 
             elif self.value == T_GTE:
                 ctx.suc_value = ctx.builder.icmp_signed('>=', ls, rs)
-                return ctx
 
-            raise Exception("not a valid operation")
+            else:
+                raise Exception("not a valid operation")
+
+            return ctx
 
 
         if self.value == T_EQS:
             ctx.suc_value = ctx.builder.fcmp_ordered('==', ls, rs)
-            return ctx
 
         elif self.value == T_NEQ:
             ctx.suc_value = ctx.builder.fcmp_ordered('!=', ls, rs)
-            return ctx
 
         elif self.value == T_LT:
             ctx.suc_value = ctx.builder.fcmp_ordered('<', ls, rs)
-            return ctx
 
         elif self.value == T_LTE:
             ctx.suc_value = ctx.builder.fcmp_ordered('<=', ls, rs)
-            return ctx
 
         elif self.value == T_GT:
             ctx.suc_value = ctx.builder.fcmp_ordered('>', ls, rs)
-            return ctx
 
         elif self.value == T_GTE:
             ctx.suc_value = ctx.builder.fcmp_ordered('>=', ls, rs)
-            return ctx
 
-        raise Exception("not a valid operation")
+        else:
+            raise Exception("not a valid operation")
 
-
+        return ctx
 
 class CastFloToInt(Node):
     def __init__(self, value, casting_type):

@@ -1,6 +1,5 @@
 from llvmlite.ir import (
     IntType,
-    HalfType,
     FloatType,
     DoubleType,
     PointerType,
@@ -61,30 +60,31 @@ keywords = [
 
 def getCurrectType(ty) -> str:
 
+    str_repr = ""
+
     if isinstance(ty, IntType):
 
-        if ty.width == 64: return "long"
-        if ty.width == 32: return "int"
-        if ty.width == 16: return "short"
-        if ty.width == 8 : return "char"
-        if ty.width == 1 : return "bool"
+        if ty.width == 64: str_repr = "long"
+        if ty.width == 32: str_repr = "int"
+        if ty.width == 16: str_repr = "short"
+        if ty.width == 8 : str_repr = "char"
+        if ty.width == 1 : str_repr = "bool"
 
     elif isinstance(ty, FloatType):
-        return "float"
+        str_repr = "float"
 
     elif isinstance(ty, DoubleType):
-        return "double"
+        str_repr = "double"
 
     elif isinstance(ty, PointerType):
 
         res = getCurrectType(ty.pointee)
 
-        if res == "": return ""
-        elif res == "char": return "string"
-        else: return res + "ptr"
-        
-    #else
-    return ""
+        if res == "": pass
+        elif res == "char": str_repr = "string"
+        else: str_repr = res + "ptr"
+
+    return str_repr
 
 def get_generator():
     n = 0
@@ -102,25 +102,37 @@ class Position:
         self.start_pos = start_pos
         self.end_pos = end_pos
 
+    def __repr__(self):
+        return f"Position({self.start_pos}->{self.end_pos})"
+
 class Context:
     def __init__(self):
         self.builder = None
         self.merge_block = None
-        self.function_ptr: FunctionInfo = {}
+        self.function_ptr = {}
         # we have to put one element at least
         self.module = None
         self.suc_value = None
         # will be added later on
 
-# the structure for function_ptr
-#{
-#    "value": ptr,
-#    "type": {
-#        "ret_type": "int",
-#        "params_type": ["string", "int"],
-#        "var_arg": True
-#    }
-#}
+    def initial(self, builder, module):
+        self.builder = builder
+        self.module = module
+
+    def add_func_entry(self, name, ptr, ret_type, params_type, var_arg):
+        self.function_ptr[name] = {
+            "value": ptr,
+            "type": {
+                "ret_type": ret_type,
+                "params_type": params_type,
+                "var_arg": var_arg
+            }
+        }
+        
+
+    def __repr__(self):
+        return "this is a context, so no repr is impled."
+
 
 class Symbol:
     def __init__(self):

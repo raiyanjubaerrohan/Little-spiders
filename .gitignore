@@ -1,7 +1,6 @@
-ast_view/
 __pycache__/
 test/
 tester.ll
 tester
 t.py
-commit.sh
+scanner.sh

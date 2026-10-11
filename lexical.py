@@ -200,7 +200,6 @@ class Lexer:
                         res,
                         "char"
                     ))
-                    self.next_chr()
 
                 else:
                     tokens.append(Token(
@@ -212,6 +211,9 @@ class Lexer:
 
                 # common
                 self.next_chr()
+                self.next_chr()
+                # we need it twich because one for the actual char
+                # and one for the single quote
 
             elif self.cur == ";":
                 pos = Position(self.pos, self.pos+1)
@@ -263,17 +265,16 @@ class Lexer:
         if eqs == '=':
             return Token(T_EQ, pos), None
 
-        elif eqs == '==':
+        if eqs == '==':
             return Token(T_EQS, pos), None
 
-        elif eqs == '!=':
+        if eqs == '!=':
             return Token(T_NEQ, pos),  None
 
-        elif eqs == '=>':
+        if eqs == '=>':
             return Token(T_ARROW, pos), None
 
-        else:
-            return None, Exception(f"@lexer, invalid token {eqs}")
+        return None, Exception(f"@lexer, invalid token {eqs}")
 
     def makeNumber(self):
         num_str = ''
@@ -295,15 +296,10 @@ class Lexer:
         if have_error:
             return None, Exception(f"@lexer, invalid number {num_str}")
 
-        elif dots == 1:
+        if dots == 1:
             return Token(T_LITERAL, pos, float(num_str), "float"), None
 
-        else:
-            return Token(T_LITERAL, pos, int(num_str), "int"), None
-
-
-        #end
-
+        return Token(T_LITERAL, pos, int(num_str), "int"), None
 
     def makeString(self):
         start_pos = self.pos
@@ -336,7 +332,7 @@ class Lexer:
             if self.cur == '"': return '\'', None
             if self.cur == "'": return '\"', None
             if self.cur == '\\': return '\\',None
-            else: return None, Exception(f"@lexer, unknown escape sequence \\{self.cur}")
+            return None, Exception(f"@lexer, unknown escape sequence \\{self.cur}")
 
         return None, None
 
@@ -360,7 +356,7 @@ class Lexer:
             return Token(
                 T_LITERAL, 
                 pos, 
-                True if iden == "true" else False,
+                iden == "true",
                 "bool"
             )
 

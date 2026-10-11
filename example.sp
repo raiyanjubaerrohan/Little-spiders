@@ -1,4 +1,4 @@
-let x = "Heaven is\nvery beautiful\n";
 
-if true {print(x);}
-else {print("yahhoo!");}
+let x: char = 'a';
+
+print("x is %c", x);

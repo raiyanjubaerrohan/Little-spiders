@@ -33,7 +33,8 @@ args = argParser.parse_args()
 #the module
 module = ir.Module(name= args.file if args.file else "stdmodule")
 module.triple = "aarch64-unknown-linux-android24"
-module.data_layout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128-Fn32"
+module.data_layout = ("e-m:e-p270:32:32-p271:32:32-p272:64:64-"+
+"i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128-Fn32")
 
 #main function (temporary)
 mainfunc = ir.Function(
@@ -59,20 +60,19 @@ printFunc = ir.Function(
 #context
 ctx = Context()
 
-ctx.builder = ir.IRBuilder(
-    mainfunc.append_basic_block(name="entry")
+ctx.initial(
+    ir.IRBuilder(mainfunc.append_basic_block(name="entry")),
+    module
 )
-ctx.module = module
 
 # the function entry
-ctx.function_ptr["print"] = {
-    "value": printFunc,
-    "type": {
-        "ret_type": "int",
-        "params_type": ["string"],
-        "var_args": True
-    }
-}
+ctx.add_func_entry(
+    name="print",
+    ptr=printFunc,
+    ret_type="int",
+    params_type=["string"],
+    var_arg=True
+)
 
 # init custom modules
 parser = Parser()
@@ -113,8 +113,6 @@ while not theEnd:
     elif err:
         print(err_msg.format(err))
         exit(1)
-
-    print(tlast, '\n')
 
     # the resolver area
     resolver.load(tlast, ctx)

@@ -1,12 +1,33 @@
-from nodes import *
+from nodes import (
+    Node,
+    VarAssignNode,
+    VarDeclareNode,
+    VarFetchNode,
+    BinOpNode,
+    CompareNode,
+    ConstantNode,
+    BitNode,
+    NegNode,
+    PosNode,
+    StringNode,
+    IfElseBlock,
+    ElseBlock,
+    CallNode,
+    DefaultBlock,
+    CastIntToFlo,
+    CastFloToInt,
+    CastIntHigh,
+    CastIntLow,
+    CastFloHigh,
+    CastFloLow,
+)
+
 from llvmlite.ir import (
 	FloatType,
 	IntType,
 	DoubleType,
 	PointerType,
 )
-
-from utils import getCurrectType
 
 type_casting = {
     "double": {
@@ -70,6 +91,7 @@ class Symanticizer:
     def __init__(self):
         self.cur_node = None
         self.exp_type = None
+        self.ctx = None
 
     def load(self, ast, ctx):
         self.cur_node = ast
@@ -183,46 +205,29 @@ class Symanticizer:
 
     def simanticize(self) -> tuple[Node | None, Exception | None]:
 
+        ret_value = ()
+
         if isinstance(self.cur_node, VarDeclareNode):
-
-            res, err = self.simanticize_varDecNode()
-            if err: return None, err
-
-            return res, None
+            ret_value = self.simanticize_varDecNode()
 
         elif isinstance(self.cur_node, VarAssignNode):
-
-            res, err = self.simanticize_varAssNode()
-            if err: return None, err
-
-            return res, None
+            ret_value = self.simanticize_varAssNode()
 
         elif isinstance(self.cur_node, BinOpNode):
-
-            res, err = self.simanticize_binOpNode()
-            if err: return None, err
-
-            return res, None
+            ret_value = self.simanticize_binOpNode()
 
         elif isinstance(self.cur_node, CompareNode):
-
-            res, err = self.simanticize_compareNode()
-            if err: return None, err
-
-            return res, None
+            ret_value = self.simanticize_compareNode()
 
         elif isinstance(self.cur_node, (ConstantNode, BitNode)):
-
             self.exp_type = self.cur_node.llvm_type
-
-            return self.cur_node, None
+            ret_value = (self.cur_node, None)
 
         elif isinstance(self.cur_node, VarFetchNode):
-        
+
             self.exp_type = self.cur_node.value.llvm_type
             self.cur_node.llvm_type = self.exp_type
-
-            return self.cur_node, None
+            ret_value = (self.cur_node, None)
 
         elif isinstance(self.cur_node, NegNode):
             node = self.cur_node
@@ -236,7 +241,7 @@ class Symanticizer:
 
             node.llvm_type = right_type
 
-            return NegNode(node), None
+            ret_value = (NegNode(node), None)
 
         elif isinstance(self.cur_node, PosNode):
             node = self.cur_node
@@ -250,44 +255,34 @@ class Symanticizer:
 
             node.llvm_type = right_type
 
-            return PosNode(node), None
+            ret_value = (PosNode(node), None)
 
         elif isinstance(self.cur_node, StringNode):
             self.exp_type = "string"
-
-            return self.cur_node, None
+            ret_value = (self.cur_node, None)
 
         elif isinstance(self.cur_node, CallNode):
-
-            res, err = self.simanticize_callNode()
-            if err: return None, err
-
-            return res, None
+            ret_value = self.simanticize_callNode()
 
         elif isinstance(self.cur_node, IfElseBlock):
-
-            res, err = self.simanticize_ifElseBlock()
-            if err : return None, err
-
-            return res, None
+            ret_value = self.simanticize_ifElseBlock()
 
         elif isinstance(self.cur_node, ElseBlock):
-
-            res, err = self.simanticize_ElseBlock()
-            if err: return None, err
-
-            return res, None
+            ret_value = self.simanticize_ElseBlock()
 
         elif isinstance(self.cur_node, DefaultBlock):
-            return self.cur_node, None
-        #end
-        return None, Exception(f"@symanticizer,the object ({self.cur_node}) did not match the list")
+            ret_value = (self.cur_node, None)
+
+        else:
+            ret_value = (None, Exception(f"@symanticizer,the object ({self.cur_node}) did not match the list"))
+
+        return ret_value
 
     def simanticize_callNode(self) -> tuple[CallNode | None, Exception | None]:
         node = self.cur_node
 
         # for the params
-        if not node.llvm_type["var_args"]:
+        if not node.llvm_type["var_arg"]:
             g_params = len(node.params)
             e_params = len(node.llvm_type["params_type"])
 
@@ -368,6 +363,8 @@ class Symanticizer:
             self.exp_type = res.llvm_type
             llvm_type, err = self.get_currect_type()
             if err: return None, err
+
+            res.llvm_type = llvm_type
 
             typed_params.append(res)
 
@@ -451,11 +448,13 @@ class Symanticizer:
             return IntType(8).as_pointer(), None
 
         else:
-            return None, Exception(f"@symanticizer, no type matched")
+            return None, Exception("@symanticizer, no type matched")
 
     def align_type(self, lhs, rhs) -> tuple[
         Node, Node, None] | tuple[None, None, Exception
         ]:
+
+        ret_value = None
 
         if "double" in (lhs.llvm_type, rhs.llvm_type):
             #equals to
@@ -485,9 +484,9 @@ class Symanticizer:
             self.cur_node = temp
             self.exp_type = "double"
 
-            return lhs, rhs, None
+            ret_value = lhs, rhs, None
 
-        if "float" in (lhs.llvm_type, rhs.llvm_type):
+        elif "float" in (lhs.llvm_type, rhs.llvm_type):
 
             #same as upper check
             temp = self.cur_node
@@ -511,9 +510,9 @@ class Symanticizer:
             self.cur_node = temp
             self.exp_type = "float"
 
-            return lhs, rhs, None
+            ret_value = lhs, rhs, None
 
-        if "long" in (lhs.llvm_type, rhs.llvm_type):
+        elif "long" in (lhs.llvm_type, rhs.llvm_type):
             temp = self.cur_node
 
             self.cur_node = lhs
@@ -535,9 +534,9 @@ class Symanticizer:
             self.cur_node = temp
             self.exp_type = "long"
 
-            return lhs, rhs, None
+            ret_value = lhs, rhs, None
 
-        if "int" in (lhs.llvm_type, rhs.llvm_type):
+        elif "int" in (lhs.llvm_type, rhs.llvm_type):
 
             temp = self.cur_node
 
@@ -560,9 +559,9 @@ class Symanticizer:
             self.cur_node = temp
             self.exp_type = "int"
 
-            return lhs, rhs, None
+            ret_value = lhs, rhs, None
 
-        if "short" in (lhs.llvm_type, rhs.llvm_type):
+        elif "short" in (lhs.llvm_type, rhs.llvm_type):
 
             temp = self.cur_node
 
@@ -585,9 +584,9 @@ class Symanticizer:
             self.cur_node = temp
             self.exp_type = "short"
 
-            return lhs, rhs, None
+            ret_value = lhs, rhs, None
 
-        if "char" in (lhs.llvm_type, rhs.llvm_type):
+        elif "char" in (lhs.llvm_type, rhs.llvm_type):
             #this is different because of optimization
             if lhs == "bool":
                 lhs.llvm_type = IntType(1)
@@ -599,10 +598,13 @@ class Symanticizer:
 
             self.exp_type = "char"
 
-            return lhs, rhs, None
+            ret_value =  lhs, rhs, None
 
-        self.exp_type = "bool" # every operand is boolean
-        return lhs, rhs
+        else:
+            self.exp_type = "bool" # every operand is boolean
+            ret_value = lhs, rhs, None
+
+        return ret_value 
 
         #end
     #end

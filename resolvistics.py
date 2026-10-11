@@ -1,9 +1,6 @@
 from nodes import (
-    Node,
     NegNode,
     PosNode,
-    ConstantNode,
-    StringNode,
     BinOpNode,
     CompareNode,
     CastFloToInt,
@@ -16,7 +13,6 @@ from nodes import (
     VarDeclareNode,
     VarFetchNode,
     CallNode,
-    DefaultBlock,
     IfElseBlock,
     ElseBlock,
 )
@@ -28,6 +24,7 @@ class Resolver:
         self.cur_node = None
         self.scope = 0
         self.variables_ptr = [{}]
+        self.ctx = None
 
     def load(self, ast, ctx):
         self.cur_node = ast
@@ -43,11 +40,12 @@ class Resolver:
 
     def resolve(self) -> Exception | None:
         tree = self.cur_node
+        res = None
 
         if isinstance(tree, (NegNode, PosNode)):
             self.cur_node = tree.value
 
-            return self.resolve()
+            res = self.resolve()
 
         elif isinstance(tree, CallNode):
             # first resolve the params
@@ -63,16 +61,15 @@ class Resolver:
                 tree.value = (self.ctx.
                     function_ptr[tree.value]["value"])
 
-                return None
+                res = None
             else:
-                return Exception(f"@resolver, there is no such function as {tree.value}")
+                res = Exception(f"@resolver, there is no such function as {tree.value}")
 
         elif isinstance(tree, (BinOpNode, CompareNode)):
 
             # for lhs
             self.cur_node = tree.lhs
             if err := self.resolve(): return err
-            
 
             # for rhs
             self.cur_node = tree.rhs
@@ -88,7 +85,7 @@ class Resolver:
         )):
             self.cur_node = tree.value
 
-            return self.resolve()
+            res = self.resolve()
 
         elif isinstance(self.cur_node, VarAssignNode):
 
@@ -110,7 +107,7 @@ class Resolver:
             # do not found the name in any lower scope
             # means, it is an exception
 
-            return Exception(
+            res =  Exception(
                 f"the variable {tree.value} is not declared "
                 "or not valid on this scope"
             )
@@ -145,7 +142,7 @@ class Resolver:
                     return None
 
             # same reason as varAssignNode
-            return Exception(
+            res = Exception(
                 f"the variable {tree.value} is not declared "
                 "or not valid on this scope"
             )
@@ -187,4 +184,4 @@ class Resolver:
             self.scope -= 1
             self.variables_ptr.pop()
 
-        return None
+        return res
