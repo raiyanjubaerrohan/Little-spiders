@@ -1,4 +1,6 @@
+let x = 0;
 
-let x: char = 'a';
-
-print("x is %c", x);
+while x <= 15 {
+	print("%d\n", x);
+	x = x + 1;
+}

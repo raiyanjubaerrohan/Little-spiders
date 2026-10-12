@@ -354,8 +354,8 @@ class Lexer:
 
         if iden in ("true", "false"):
             return Token(
-                T_LITERAL, 
-                pos, 
+                T_LITERAL,
+                pos,
                 iden == "true",
                 "bool"
             )

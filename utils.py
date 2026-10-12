@@ -44,8 +44,9 @@ ALPHABETS   = ALPHABETS_L + ALPHABETS_U
 
 keywords = [
     "if",
-    "else",
     "elif",
+    "else",
+    "while",
     "let",
     "int",
     "float",
@@ -128,11 +129,9 @@ class Context:
                 "var_arg": var_arg
             }
         }
-        
 
     def __repr__(self):
         return "this is a context, so no repr is impled."
-
 
 class Symbol:
     def __init__(self):

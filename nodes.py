@@ -111,7 +111,7 @@ class StringNode(Node):
 
         global_str.global_constant = True
         global_str.initializer = Constant(str_type, bytearray(self.value, "utf-8"))
-        
+
         global_str.linkage = 'private'
         ctx.suc_value = ctx.builder.gep(global_str, [zero, zero])
 
@@ -166,13 +166,13 @@ class BinOpNode(Node):
 
         elif self.value == T_MUL:
             ctx.suc_value = ctx.builder.fmul(ls, rs)
-            
+
         elif self.value == T_DIV:
             ctx.suc_value = ctx.builder.fdiv(ls, rs)
 
         elif self.value == T_MOD:
             ctx.suc_value = ctx.builder.frem(ls, rs)
-                
+
         else:
             raise Exception("not a valid operation")
 
@@ -389,7 +389,7 @@ class VarDeclareNode(Node):
         )
 
         self.value.llvm_type = getCurrectType(self.value.llvm_type)
-        
+
         varAssNode = VarAssignNode(self.value, self.expr)
 
         ctx = varAssNode.codegen(ctx)
@@ -406,7 +406,7 @@ class VarDeclareNode(Node):
 class VarFetchNode(Node):
     def __init__(self, value):
         self.value = value #the symbol instance
-        self.llvm_type = ""#the type, temporary
+        self.llvm_type = "" #the type, temporary
 
 
     def __repr__(self):
@@ -418,7 +418,7 @@ class VarFetchNode(Node):
             self.value.ptr,
             align=self.value.ptr.align
         )
-        
+
         return ctx
 
 class CallNode(Node):
@@ -436,7 +436,7 @@ class CallNode(Node):
 
         for p in self.params:
             params.append(p.codegen(ctx).suc_value)
-            
+
         ctx.suc_value = ctx.builder.call(self.value, params)
 
         return ctx
@@ -447,11 +447,11 @@ class DefaultBlock:
         self.body = []
 
     def __repr__(self):
-        return f": {self.body} end"
+        return "{" + repr(self.body) + "}"
 
     def codegen(self, ctx) -> Context:
         ctx.builder.branch(ctx.merge_block)
-        
+
         return ctx
 
 
@@ -462,7 +462,9 @@ class IfElseBlock(DefaultBlock):
         self.else_block = else_block # the else block
 
     def __repr__(self):
-        return f"if {self.cond}: {self.body} else {self.else_block}"
+        return ("if " + repr(self.cond) +
+            " { " + repr(self.body) + "\n} else " +
+            repr(self.else_block))
 
     def codegen(self, ctx) -> Context:
 
@@ -482,7 +484,7 @@ class IfElseBlock(DefaultBlock):
         ctx.builder = IRBuilder(then_block)
 
         # reserving
-        merg = ctx.merge_block 
+        merg = ctx.merge_block
         ctx.merge_block = None
 
         for stmt in self.body:
@@ -496,7 +498,6 @@ class IfElseBlock(DefaultBlock):
 
         # replace the builder for else
         ctx.builder = IRBuilder(else_block)
-
         ctx = self.else_block.codegen(ctx)
 
         # replace the builder for merge block
@@ -522,4 +523,50 @@ class ElseBlock(DefaultBlock):
         return ctx
 
     def __repr__(self):
-        return f"{super().__repr__()}"
+        return repr(self)
+
+class WhileBlock(DefaultBlock):
+    def __init__(self, cond, body, else_block):
+        self.cond = cond
+        self.body = body
+        self.else_block = else_block
+
+    def __repr__(self):
+        return ("while " + repr(self.cond) + " {"+
+            repr(self.body) + "\n} else "+
+            repr(self.else_block))
+
+    def codegen(self, ctx):
+
+        cond_block = ctx.builder.append_basic_block()
+        body_block = ctx.builder.append_basic_block()
+        else_block = ctx.builder.append_basic_block()
+        merge_block = ctx.builder.append_basic_block()
+
+        # eval condition
+        ctx.builder.branch(cond_block) # this builder is dead
+
+        ctx.builder = IRBuilder(cond_block)
+
+        ans = self.cond.codegen(ctx).suc_value
+
+        # now branching according to result
+        ctx.builder.cbranch(ans, body_block, else_block) # dead
+
+        ctx.builder = IRBuilder(body_block)
+
+        # eval body
+        for stmt in self.body:
+            ctx = stmt.codegen(ctx)
+
+        ctx.builder.branch(cond_block)
+
+        # setting up
+        ctx.merge_block = merge_block
+
+        ctx.builder = IRBuilder(else_block)
+        ctx = self.else_block.codegen(ctx)
+
+        ctx.builder = IRBuilder(ctx.merge_block)
+
+        return ctx

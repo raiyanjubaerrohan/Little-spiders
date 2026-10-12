@@ -11,6 +11,7 @@ from nodes import (
     PosNode,
     StringNode,
     IfElseBlock,
+    WhileBlock,
     ElseBlock,
     CallNode,
     DefaultBlock,
@@ -110,7 +111,7 @@ class Symanticizer:
             varDec.value.llvm_type, expr.llvm_type
         )
         if err: return None, err
-        
+
         #lastly assign the compatable result
         varDec.expr = comp_res
         varDec.value.llvm_type = comp_res.llvm_type
@@ -268,7 +269,10 @@ class Symanticizer:
             ret_value = self.simanticize_ifElseBlock()
 
         elif isinstance(self.cur_node, ElseBlock):
-            ret_value = self.simanticize_ElseBlock()
+            ret_value = self.simanticize_elseBlock()
+
+        elif isinstance(self.cur_node, WhileBlock):
+            ret_value = self.simanticize_whileBlock()
 
         elif isinstance(self.cur_node, DefaultBlock):
             ret_value = (self.cur_node, None)
@@ -391,9 +395,8 @@ class Symanticizer:
         # the body
         stmts = []
 
-        for stm in if_block.body:
-            self.cur_node = stm
-
+        for stmt in if_block.body:
+            self.cur_node = stmt
             res, err = self.simanticize()
             if err: return None, err
 
@@ -406,7 +409,33 @@ class Symanticizer:
 
         return IfElseBlock(res_cond, stmts, res_else_block), None
 
-    def simanticize_ElseBlock(self):
+    def simanticize_whileBlock(self):
+
+        while_block = self.cur_node
+
+        # the condition
+        self.cur_node = while_block.cond
+        res_cond, err = self.simanticize()
+        if err: return None, err
+
+        res_cond.llvm_type = IntType(1)
+
+        # the body
+        stmts = []
+        for stmt in while_block.body:
+            self.cur_node = stmt
+            res, err = self.simanticize()
+            if err: return None, err
+
+            stmts.append(res)
+
+        # we do not have a else block
+        # so we are not doing this
+        # but I will put this in near future
+
+        return WhileBlock(res_cond, stmts, DefaultBlock()), None
+
+    def simanticize_elseBlock(self):
 
         else_block = self.cur_node
 
@@ -604,7 +633,7 @@ class Symanticizer:
             self.exp_type = "bool" # every operand is boolean
             ret_value = lhs, rhs, None
 
-        return ret_value 
+        return ret_value
 
         #end
     #end

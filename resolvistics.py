@@ -15,6 +15,7 @@ from nodes import (
     CallNode,
     IfElseBlock,
     ElseBlock,
+    WhileBlock,
 )
 
 from utils import Symbol
@@ -97,13 +98,13 @@ class Resolver:
 
                 # for now tree.value is the name
                 if tree.value in dict_of_scope:
-                
+
                     tree.value = dict_of_scope[tree.value]
                     #now it a symbol instant
-                    
+
                     return None
 
-            # the loop only comes here if it 
+            # the loop only comes here if it
             # do not found the name in any lower scope
             # means, it is an exception
 
@@ -127,7 +128,6 @@ class Resolver:
 
             # the latest scope entry
             self.variables_ptr[-1][tree.value.name] = tree.value
-            
 
         elif isinstance(tree, VarFetchNode):
 
@@ -135,10 +135,10 @@ class Resolver:
                 dict_of_scope = self.variables_ptr[sp]
 
                 if tree.value in dict_of_scope:
-                
+
                     tree.value = dict_of_scope[tree.value]
                     # now tree.value is a symbol instant
-                    
+
                     return None
 
             # same reason as varAssignNode
@@ -152,9 +152,8 @@ class Resolver:
             self.cur_node = tree.cond
             if err := self.resolve(): return err
 
-            # before entering the body we should increse the scope
+            # increse the scope
             self.scope += 1
-            
             self.variables_ptr.append({})
 
             # body
@@ -173,7 +172,6 @@ class Resolver:
 
             # increse the scope
             self.scope += 1
-
             self.variables_ptr.append({})
 
             # body
@@ -181,6 +179,25 @@ class Resolver:
                 if err := self.resolve(): return err
 
             # returing from else block, we should decrease scope
+            self.scope -= 1
+            self.variables_ptr.pop()
+
+        elif isinstance(tree, WhileBlock):
+
+            # condition
+            self.cur_node = tree.cond
+            if err := self.resolve(): return err
+
+            # increse the scope
+            self.scope += 1
+            self.variables_ptr.append({})
+
+            # body
+            for self.cur_node in tree.body:
+                if err := self.resolve(): return err
+
+            # returning from while block
+            # decrease the scope
             self.scope -= 1
             self.variables_ptr.pop()
 
