@@ -220,6 +220,11 @@ class Lexer:
                 tokens.append(Token(T_EOS, pos))
                 self.next_chr()
 
+            # comment remover
+            elif self.cur == "#":
+                while self.cur != '\n': self.next_chr()
+                self.next_chr()
+
             else:
                 return None, Exception(f"@lexer, invalid token '{self.cur}'")
 

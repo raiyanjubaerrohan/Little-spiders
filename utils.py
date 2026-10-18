@@ -55,7 +55,8 @@ keywords = [
     "double",
     "bool",
     "func",
-    "end",
+    "break",
+    "continue",
 ]
 
 

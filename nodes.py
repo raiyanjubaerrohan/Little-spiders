@@ -1,4 +1,21 @@
-from utils import *
+from utils import (
+    T_ADD,
+    T_SUB,
+    T_DIV,
+    T_MUL,
+    T_MOD,
+    T_EQS,
+    T_NEQ,
+    T_LT,
+    T_LTE,
+    T_GT,
+    T_GTE,
+    name_generator,
+
+    Context,
+    getCurrectType,
+)
+
 from llvmlite.ir import (
     IntType,
     FloatType,
@@ -41,28 +58,26 @@ class NegNode(Node):
 
 
     def codegen(self, ctx) -> Context :
-        ctx.suc_value = ctx.builder.neg(
-            self.value.codegen(ctx).suc_value
-        )
+
+        llvm_res = self.value.codegen(ctx).suc_value
+        llvm_type = getCurrectType(self.llvm_type)
+
+        if llvm_type not in (
+            "double", "float",
+            "long", "int", "short", "char", "bool"):
+
+            raise Exception(f"unknown type {llvm_type} for negation operation")
+
+        elif llvm_type in ("double", "float"):
+            ctx.suc_value = ctx.builder.fneg(llvm_res)
+
+        else:
+            ctx.suc_value = ctx.builder.neg(llvm_res)
 
         return ctx
 
     def __repr__(self):
         return f"Neg({self.value})"
-
-
-class PosNode(Node):
-    def __init__(self, value):
-        self.value = value #the actual value, node
-        self.llvm_type = value.llvm_type
-
-    def codegen(self, ctx) -> Context:
-        ctx.suc_value = self.value
-        return ctx
-
-    def __repr__(self):
-        return f"PosNode({self.value})"
-
 
 class ConstantNode(Node):
     def __init__(self, value: int | float , _type = None):
@@ -440,6 +455,22 @@ class CallNode(Node):
         ctx.suc_value = ctx.builder.call(self.value, params)
 
         return ctx
+
+class BreakNode(Node):
+
+    def __repr__(self):
+        return "break"
+
+    def codegen(self, ctx):
+        pass
+
+class ContinueNode(Node):
+
+    def __repr__(self):
+        return "continue"
+
+    def codegen(self, ctx):
+        pass
 
 # this starts a new origin
 class DefaultBlock:

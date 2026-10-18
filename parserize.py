@@ -5,12 +5,13 @@ from nodes import (
     CompareNode,
     BinOpNode,
     NegNode,
-    PosNode,
     StringNode,
     VarFetchNode,
     VarAssignNode,
     VarDeclareNode,
     CallNode,
+    BreakNode,
+    ContinueNode,
     IfElseBlock,
     DefaultBlock,
     ElseBlock,
@@ -146,57 +147,82 @@ class Parser:
 
     def factor(self) -> tuple[Node | None, Exception | None]:
 
-        if self.cur_tok.type in (T_ADD, T_SUB):
-            sign = self.cur_tok == T_ADD
+        layers = []
 
-            eof, err = self.next_tok()
-            if eof: return "theend", Exception("@parser, excepted more tokens")
-            if err: return None, err
+        while True:
+            if self.cur_tok.type in (T_ADD, T_SUB):
+                nosign = self.cur_tok == T_SUB
 
-            res, err = self.factor()
-            if res == "theend": return res, err
-            if err: return None, err
+                eof, err = self.next_tok()
+                if eof: return "theend", Exception("@parser, excepted more tokens")
+                if err: return None, err
 
-            if sign: return PosNode(res), None
-            return NegNode(res), None
+                if nosign: layers.append(NegNode)
+                # there is not need for pos node,
+                # it is not required
 
-        elif self.cur_tok.typer in ("int", "float"):
-            return ConstantNode(
-                self.cur_tok.value,
-                self.cur_tok.typer
-            ), None
+            elif self.cur_tok.typer in ("int", "float"):
+                layers.append(ConstantNode(
+                    self.cur_tok.value,
+                    self.cur_tok.typer
+                ))
+                # a leaf node so breaking the loop
+                break
 
-        elif self.cur_tok.typer == "char":
-            return ConstantNode(
-                ord(self.cur_tok.value),
-                self.cur_tok.typer
-            ), None
+            elif self.cur_tok.typer == "char":
+                layers.append(ConstantNode(
+                    ord(self.cur_tok.value),
+                    self.cur_tok.typer
+                ))
+                # leaf node, so breaking the loop
+                break
 
-        elif self.cur_tok.typer == "string":
-            return StringNode(self.cur_tok.value), None
+            elif self.cur_tok.typer == "string":
+                layers.append(StringNode(self.cur_tok.value))
+                # a leaf node so breaking the loop
+                break
 
-        elif self.cur_tok.typer == "bool":
-            return BitNode(self.cur_tok.value), None
+            elif self.cur_tok.typer == "bool":
+                layers.append(BitNode(self.cur_tok.value))
+                # a leaf node, so breaking the loop
+                break
 
-        elif self.cur_tok == T_IDEN:
-            return VarFetchNode(self.cur_tok.value), None
+            elif self.cur_tok == T_IDEN:
+                layers.append(VarFetchNode(self.cur_tok.value))
+                # a leaf node, so breaking the loop
+                break
 
-        elif self.cur_tok == T_LPAN1:
+            elif self.cur_tok == T_LPAN1:
 
-            eof, err = self.next_tok()
-            if eof: return "theend", Exception("@parser, expected more tokens")
-            if err: return None, err
+                eof, err = self.next_tok()
+                if eof: return "theend", Exception("@parser, expected more tokens")
+                if err: return None, err
 
-            res, err = self.expr()
-            if res == "theend": return res, err
-            if err: return None, err
+                # we have no choice
+                res, err = self.expr()
+                if res == "theend": return res, err
+                if err: return None, err
 
-            if self.cur_tok == T_RPAN1:
-                return res, None
+                if self.cur_tok == T_RPAN1:
+                    layers.append(res)
+                    break
 
-            return None, Exception("@parser, found no closing paranthisis!")
+                return None, Exception("@parser, found no closing paranthisis!")
 
-        return None, Exception(f"@parser, unknown prefix or operand {self.cur_tok}!")
+            else:
+                return None, Exception(f"@parser, unknown prefix or operand {self.cur_tok}!")
+
+        # now, rebuilding the tree
+
+        idx = len(layers) - 1 # the last index
+        result = layers[idx] # the last one, the result
+        idx -= 1
+
+        while idx >= 0:
+            result = layers[idx](result) #wrap itself
+            idx -= 1
+
+        return result, None
 
     def get_binding_power(self, op) -> tuple[int, int, Exception | None]:
 
@@ -511,6 +537,17 @@ class Parser:
 
         elif self.cur_tok.value == "while":
             return self.parse_while()
+
+        elif self.cur_tok.value == "continue":
+
+            eof, err = self.next_tok()
+            if eof: return "theend", Exception("@parser, ")
+            if err: return None, err
+
+            return ConstantNode(), None
+
+        elif self.cur_tok.value == "break":
+            pass
 
         #calling or assign entry point
         elif self.cur_tok == T_IDEN:

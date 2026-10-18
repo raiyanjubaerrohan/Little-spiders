@@ -8,7 +8,6 @@ from nodes import (
     ConstantNode,
     BitNode,
     NegNode,
-    PosNode,
     StringNode,
     IfElseBlock,
     WhileBlock,
@@ -94,9 +93,11 @@ class Symanticizer:
         self.exp_type = None
         self.ctx = None
 
-    def load(self, ast, ctx):
+    def load(self, ast, ctx) -> None:
         self.cur_node = ast
         self.ctx = ctx
+
+        return None
 
     def simanticize_varDecNode(self) -> tuple[Node | None, Exception | None]:
         varDec = self.cur_node
@@ -232,31 +233,18 @@ class Symanticizer:
 
         elif isinstance(self.cur_node, NegNode):
             node = self.cur_node
-            self.cur_node = node.value
 
-            node, err = self.simanticize()
+            self.cur_node = node.value
+            res_node, err = self.simanticize()
             if err: return None, err
 
             right_type, err = self.get_currect_type()
             if err: return None, err
 
-            node.llvm_type = right_type
+            res_node.llvm_type = right_type
+            node.value = res_node
 
-            ret_value = (NegNode(node), None)
-
-        elif isinstance(self.cur_node, PosNode):
-            node = self.cur_node
-            self.cur_node = node.value
-
-            node, err = self.simanticize()
-            if err: return None, err
-
-            right_type, err = self.get_currect_type()
-            if err: return None, err
-
-            node.llvm_type = right_type
-
-            ret_value = (PosNode(node), None)
+            ret_value = node, None
 
         elif isinstance(self.cur_node, StringNode):
             self.exp_type = "string"
@@ -409,7 +397,10 @@ class Symanticizer:
 
         return IfElseBlock(res_cond, stmts, res_else_block), None
 
-    def simanticize_whileBlock(self):
+    def simanticize_whileBlock(self) -> tuple[
+        WhileBlock | None,
+        Exception  | None
+    ]:
 
         while_block = self.cur_node
 
@@ -435,7 +426,10 @@ class Symanticizer:
 
         return WhileBlock(res_cond, stmts, DefaultBlock()), None
 
-    def simanticize_elseBlock(self):
+    def simanticize_elseBlock(self) -> tuple[
+        ElseBlock | None,
+        Exception | None
+    ]:
 
         else_block = self.cur_node
 
@@ -493,7 +487,6 @@ class Symanticizer:
             #temporary var to store the current node
 
             self.cur_node = lhs #for passing in select_type
-
             _, lhs, err = self.select_type(
                 DoubleType(),
                 "double",
