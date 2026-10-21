@@ -108,11 +108,7 @@ class Parser:
         left, err = self.factor()
 
         if left == "theend": return left, err
-        if err: return None, err
-
-        eof, err = self.next_tok()
-        if eof: return "theend", Exception("@parser, excepted more tokens")
-        if err: return None, err
+        if err: return None, Exception("@parser, excepted more tokens")
 
         while self.cur_tok not in self.EOE:
 
@@ -158,14 +154,22 @@ class Parser:
                 if err: return None, err
 
                 if nosign: layers.append(NegNode)
-                # there is not need for pos node,
+                # there is not need for PosNode,
                 # it is not required
+
+                eof, err = self.next_tok()
+                if eof: return "theend", Exception("@parser, excpted more tokens")
+                if err: return None, err
 
             elif self.cur_tok.typer in ("int", "float"):
                 layers.append(ConstantNode(
                     self.cur_tok.value,
                     self.cur_tok.typer
                 ))
+
+                eof, err = self.next_tok()
+                if eof: return "theend", Exception("@parser, excpted more tokens")
+                if err: return None, err
                 # a leaf node so breaking the loop
                 break
 
@@ -174,21 +178,49 @@ class Parser:
                     ord(self.cur_tok.value),
                     self.cur_tok.typer
                 ))
+
+                eof, err = self.next_tok()
+                if eof: return "theend", Exception("@parser, expected more tokens")
+                if err: return None, err
+
                 # leaf node, so breaking the loop
                 break
 
             elif self.cur_tok.typer == "string":
                 layers.append(StringNode(self.cur_tok.value))
+
+                eof, err = self.next_tok()
+                if eof: return "theend", Exception("@parser, expected more tokens")
+                if err: return None, err
+
                 # a leaf node so breaking the loop
                 break
 
             elif self.cur_tok.typer == "bool":
                 layers.append(BitNode(self.cur_tok.value))
                 # a leaf node, so breaking the loop
+
+                eof, err = self.next_tok()
+                if eof: return "theend", Exception("@parser, expected more tokens")
+                if err: return None, err
+
                 break
 
             elif self.cur_tok == T_IDEN:
-                layers.append(VarFetchNode(self.cur_tok.value))
+                iden = self.cur_tok.value
+
+                eof, err = self.next_tok()
+                if eof: return "theend", Exception("@parser, expected more tokens")
+                if err: return None, err
+
+                if self.cur_tok == T_LPAN1:
+                    res, err = self.parse_call(iden)
+                    if err: return None, err
+
+                    layers.append(res)
+
+                else:
+                    layers.append(VarFetchNode(iden))
                 # a leaf node, so breaking the loop
                 break
 
@@ -331,7 +363,10 @@ class Parser:
 
         return VarAssignNode(iden, expression), None
 
-    def parse_if(self):
+    def parse_if(self) -> tuple[
+        IfElseBlock | None,
+        Exception | None
+    ]:
 
         eof, err = self.next_tok()
         if eof: return "theend", Exception("@parser, expected condition after if")
@@ -391,7 +426,10 @@ class Parser:
         return current_block, None
     #end
 
-    def parse_else(self):
+    def parse_else(self) -> tuple[
+        ElseBlock | None,
+        Exception | None
+    ]:
 
         eof, err = self.next_tok() #consume else key
         if eof: return "theend", Exception("@parser, expected more tokens")
@@ -405,7 +443,10 @@ class Parser:
 
         return current_block, None
 
-    def parse_while(self):
+    def parse_while(self) -> tuple[
+        WhileBlock | None,
+        Exception  | None
+    ]:
 
         # remove the while
         eof, err = self.next_tok()
@@ -438,7 +479,10 @@ class Parser:
 
         return WhileBlock(cond_expr, nodes, DefaultBlock()), None
 
-    def parse_call(self, iden):
+    def parse_call(self, iden) -> tuple[
+        CallNode  | None,
+        Exception | None
+    ]:
 
         err_msg = ("@parser, expected more tokens to "+
             "complete the call parsing")
@@ -482,13 +526,6 @@ class Parser:
             eof, err = self.next_tok()
             if eof: return "theend", Exception("@parser, expected at least one semicolon")
             if err: return None, err
-
-        if err := self.expect(T_EOS):
-            return None, err
-
-        # consume the eos
-        eof, err = self.next_tok()
-        if err: return None, err
 
         #restoring eoe
         self.EOE = pre_eoe
@@ -540,14 +577,25 @@ class Parser:
 
         elif self.cur_tok.value == "continue":
 
+            if err := self.expect(T_EOS, isType=True):
+                return None, err
+            
             eof, err = self.next_tok()
-            if eof: return "theend", Exception("@parser, ")
+            if eof: return "theend", Exception("@parser, expected more tokens")
             if err: return None, err
 
             return ConstantNode(), None
 
         elif self.cur_tok.value == "break":
-            pass
+
+            if err := self.expect(T_EOS, isType=True):
+                return None, err
+
+            eof, err = self.next_tok()
+            if eof: return "theend", Exception("@parser, expected more tokens")
+            if err: return None, err
+
+            return BreakNode(), None
 
         #calling or assign entry point
         elif self.cur_tok == T_IDEN:
@@ -564,7 +612,15 @@ class Parser:
 
             #means this is a calling node
             if self.cur_tok == T_LPAN1:
-                return self.parse_call(iden_name)
+                res, err = self.parse_call(iden_name)
+
+                if err := self.expect(T_EOS, isType=True):
+                    return None, err
+
+                eof, err = self.next_tok()
+                if err: return None, err
+
+                return res, None
 
         return self.expr()
 

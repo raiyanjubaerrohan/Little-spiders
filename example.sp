@@ -1,1 +1,2 @@
-let x = 20 + 4* +++---+-5;
+
+print("hello world");
