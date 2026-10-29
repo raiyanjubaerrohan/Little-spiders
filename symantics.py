@@ -133,6 +133,7 @@ class Symanticizer:
         comp_res, err = self.make_compatible(
             node.value.llvm_type, expr.llvm_type
         )
+        if err: return None, err
 
         # I do not need the right type,
         # because I have one in
@@ -238,6 +239,9 @@ class Symanticizer:
             res_node, err = self.simanticize()
             if err: return None, err
 
+            # child's type is my type
+            node.llvm_type = res_node.llvm_type
+
             right_type, err = self.get_currect_type()
             if err: return None, err
 
@@ -254,7 +258,7 @@ class Symanticizer:
             ret_value = self.simanticize_callNode()
 
         elif isinstance(self.cur_node, IfElseBlock):
-            ret_value = self.simanticize_ifElseBlock()
+            ret_value = self.simanticize_if_elseBlock()
 
         elif isinstance(self.cur_node, ElseBlock):
             ret_value = self.simanticize_elseBlock()
@@ -369,7 +373,7 @@ class Symanticizer:
 
         return callNode, None
 
-    def simanticize_ifElseBlock(self) -> tuple[IfElseBlock | None, Exception | None]:
+    def simanticize_if_elseBlock(self) -> tuple[IfElseBlock | None, Exception | None]:
 
         if_block = self.cur_node
 
@@ -420,11 +424,12 @@ class Symanticizer:
 
             stmts.append(res)
 
-        # we do not have a else block
-        # so we are not doing this
-        # but I will put this in near future
+        # the else block
+        self.cur_node = while_block.else_block
+        res_else_block, err = self.simanticize()
+        if err:  return None, err
 
-        return WhileBlock(res_cond, stmts, DefaultBlock()), None
+        return WhileBlock(res_cond, stmts, res_else_block), None
 
     def simanticize_elseBlock(self) -> tuple[
         ElseBlock | None,

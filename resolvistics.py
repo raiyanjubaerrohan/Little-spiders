@@ -195,9 +195,12 @@ class Resolver:
             for self.cur_node in tree.body:
                 if err := self.resolve(): return err
 
-            # returning from while block
-            # decrease the scope
+            # decrease the scope for else block
             self.scope -= 1
             self.variables_ptr.pop()
+
+            # else block
+            self.cur_node = tree.else_block
+            if err := self.resolve(): return err
 
         return res

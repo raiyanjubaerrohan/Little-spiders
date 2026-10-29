@@ -12,7 +12,7 @@ argParser = argparse.ArgumentParser(prog="spiders")
 
 argParser.add_argument("input_file", nargs="?",
     help="the source file name")
-argParser.add_argument("-o", "--output", nargs=1, default="tester.ll",
+argParser.add_argument("-o", "--output", nargs=1, default=["tester.ll"],
     help="output file name (default tester.ll)")
 argParser.add_argument("-p", "--print-llvm",
     action="store_true", help="prints the LLVM IR")
@@ -116,6 +116,7 @@ while not theEnd:
         print(err_msg.format(err))
         exit(1)
 
+    # the codegen area
     ctx = tpast.codegen(ctx)
 
 f.close()

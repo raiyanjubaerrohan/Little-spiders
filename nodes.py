@@ -554,7 +554,7 @@ class ElseBlock(DefaultBlock):
         return ctx
 
     def __repr__(self):
-        return repr(self)
+        return super().__repr__()
 
 class WhileBlock(DefaultBlock):
     def __init__(self, cond, body, else_block):

@@ -80,7 +80,7 @@ class Lexer:
         self.cur = None
         self.next_chr()
 
-        while self.cur != None:
+        while self.cur is not None:
 
             if self.cur in ALPHABETS+'_':
                 tokens.append(self.makeIdentifier())
@@ -222,8 +222,8 @@ class Lexer:
 
             # comment remover
             elif self.cur == "#":
-                while self.cur != '\n': self.next_chr()
-                self.next_chr()
+                while self.cur not in ('\n',''): self.next_chr()
+                self.next_chr() #to escape the \n or eof
 
             else:
                 return None, Exception(f"@lexer, invalid token '{self.cur}'")
@@ -260,7 +260,7 @@ class Lexer:
         eqs = ''
         start_pos = self.pos
 
-        while (self.cur != None
+        while (self.cur is not None
         and self.cur in ('=','>','!')):
             eqs += self.cur
             self.next_chr()
@@ -287,7 +287,7 @@ class Lexer:
         have_error = False
         start_pos = self.pos
 
-        while (self.cur != None
+        while (self.cur is not None
         and self.cur in NUMBERS+'.'):
 
             if self.cur == '.': dots+= 1
@@ -346,7 +346,7 @@ class Lexer:
 
         start_pos = self.pos
 
-        while (self.cur != None
+        while (self.cur is not None
         and self.cur in ALPHABETS+'_'+NUMBERS):
             iden += self.cur
 

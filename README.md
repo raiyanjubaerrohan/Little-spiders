@@ -39,6 +39,7 @@ pip install llvmlite
 
 ## For linux users
 
+### Ubuntu / Debian
 if you are using ubuntu, you have a clean path
 ```bash
 sudo apt update
@@ -55,7 +56,7 @@ then install llvmlite
 ```bash
 pip install llvmlite
 ```
-
+### Arch
 And if you are using Arch BTW
 Install dependecies:
 
@@ -75,26 +76,24 @@ after that just run
 pip install llvmlite
 ```
 
-# For macOS users
-
+## For macOS users
 I do not know how to install it on macOS. so good luck.
 
-## If it crashes
+# If it crashes
 I have a limited expirence with llvmlite.
 I can not tell how to install it properly.
 You have to find the way by yourself. I can not help you. Sorry.
-
-
-## Else
-That all we need to get our system set.
 
 # How to *RUN*?
 if you have no errors installing llvmlite then you can just simply
 run it with this bash command.
 ```bash
-python main.py example.sp --display-llvm
+python main.py example.sp --print-llvm
 ```
-
+or
+```bash
+python main.py example.sp -p
+```
 it should work, but if something fails in the project,
 I request you to report the issue.
 
@@ -105,3 +104,7 @@ python main.py -h
 
 enjoy the compiler and it's language.
 
+# complements
+I have not stressed it too much. I am keeping it as simple as possible.
+A detailed breakdown is in the `docs/` folder. List:
+- [docs/lexical.md](docs/lexical.md)

@@ -144,16 +144,10 @@ class Parser:
     def factor(self) -> tuple[Node | None, Exception | None]:
 
         layers = []
-
         while True:
             if self.cur_tok.type in (T_ADD, T_SUB):
-                nosign = self.cur_tok == T_SUB
 
-                eof, err = self.next_tok()
-                if eof: return "theend", Exception("@parser, excepted more tokens")
-                if err: return None, err
-
-                if nosign: layers.append(NegNode)
+                if self.cur_tok == T_SUB: layers.append(NegNode)
                 # there is not need for PosNode,
                 # it is not required
 
@@ -170,6 +164,7 @@ class Parser:
                 eof, err = self.next_tok()
                 if eof: return "theend", Exception("@parser, excpted more tokens")
                 if err: return None, err
+
                 # a leaf node so breaking the loop
                 break
 
@@ -236,6 +231,11 @@ class Parser:
                 if err: return None, err
 
                 if self.cur_tok == T_RPAN1:
+
+                    eof, err = self.next_tok()
+                    if eof: return "theend", Exception("@parser, expected at least one semicolon to end the expression")
+                    if err: return None, err
+
                     layers.append(res)
                     break
 
@@ -402,29 +402,19 @@ class Parser:
 
         #branch checking
         if self.cur_tok.value == "elif":
-            self.node_start = self.cur_pos
-
             res, err = self.parse_if()
-            if res == "theend": return res, err
-            if err: return None, err
 
-            # return with res
-            current_block.else_block = res
-            return current_block, None
-
-        if self.cur_tok.value == "else":
-            self.node_start = self.cur_pos
-
+        elif self.cur_tok.value == "else":
             res, err = self.parse_else()
-            if res == "theend": return res, None
-            if err: return None, err
 
-            #returning with res
-            current_block.else_block = res
-            return current_block, None
+        else: return current_block, None
 
+        if res == "theend": return res, None
+        if err: return None, err
+
+        #returning with res
+        current_block.else_block = res
         return current_block, None
-    #end
 
     def parse_else(self) -> tuple[
         ElseBlock | None,
@@ -475,9 +465,26 @@ class Parser:
         if nodes == "theend": return nodes, err
         if err: return None, err
 
-        # for now I am skipping the fallback part
+        wb = WhileBlock(
+            cond_expr,
+            nodes,
+            DefaultBlock()
+        )
 
-        return WhileBlock(cond_expr, nodes, DefaultBlock()), None
+        # brance checking
+        if self.cur_tok.value == "elif":
+            res, err = self.parse_if()
+
+        elif self.cur_tok.value == "else":
+            res, err = self.parse_else()
+
+        else: return wb, None
+
+        if res == "theend": return res, err
+        if err: return None, err
+
+        wb.else_block = res
+        return wb, None
 
     def parse_call(self, iden) -> tuple[
         CallNode  | None,
@@ -579,7 +586,7 @@ class Parser:
 
             if err := self.expect(T_EOS, isType=True):
                 return None, err
-            
+
             eof, err = self.next_tok()
             if eof: return "theend", Exception("@parser, expected more tokens")
             if err: return None, err
