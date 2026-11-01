@@ -458,19 +458,51 @@ class CallNode(Node):
 
 class BreakNode(Node):
 
+    def __init__(self):
+        self.value = None
+
     def __repr__(self):
         return "break"
 
+    def __eq__(self, other):
+        return other == "break"
+
+    def __ne__(self, other):
+        return other != "break"
+
     def codegen(self, ctx):
-        pass
+
+        if not ctx.cond_block:
+            raise Exception("break statement without any loop!")
+
+        ctx.should_stop = True
+        ctx.builder.branch(ctx.merge_block) # dead
+
+        return ctx
 
 class ContinueNode(Node):
+
+    def __init__(self):
+        self.value = None
 
     def __repr__(self):
         return "continue"
 
+    def __eq__(self, other):
+        return "continue" == other
+
+    def __ne__(self, other):
+        return "continue" != other
+
     def codegen(self, ctx):
-        pass
+
+        if not ctx.cond_block:
+            raise Exception("continue statement without any loop!")
+
+        ctx.should_stop = True
+        ctx.builder.branch(ctx.cond_block) # dead
+        
+        return ctx
 
 # this starts a new origin
 class DefaultBlock:
@@ -481,7 +513,13 @@ class DefaultBlock:
         return "{" + repr(self.body) + "}"
 
     def codegen(self, ctx) -> Context:
-        ctx.builder.branch(ctx.merge_block)
+
+        # first priority
+        if ctx.if_merge_block:
+            ctx.builder.branch(ctx.if_merge_block)
+
+        else:
+            ctx.builder.branch(ctx.merge_block)
 
         return ctx
 
@@ -502,8 +540,8 @@ class IfElseBlock(DefaultBlock):
         # adding nessesary blocks
         then_block = ctx.builder.append_basic_block()
         else_block = ctx.builder.append_basic_block()
-        if not ctx.merge_block:
-            ctx.merge_block = ctx.builder.append_basic_block()
+        if not ctx.if_merge_block:
+            ctx.if_merge_block = ctx.builder.append_basic_block()
 
         # evaluate condition
         ans = self.cond.codegen(ctx).suc_value
@@ -515,24 +553,28 @@ class IfElseBlock(DefaultBlock):
         ctx.builder = IRBuilder(then_block)
 
         # reserving
-        merg = ctx.merge_block
-        ctx.merge_block = None
+        merg = ctx.if_merge_block
+        ctx.if_merge_block = None
 
         for stmt in self.body:
             ctx = stmt.codegen(ctx)
+            if ctx.should_stop: break
 
         # restoring
-        ctx.merge_block = merg
+        ctx.if_merge_block = merg
 
-        # jumping to the merge block
-        ctx.builder.branch(ctx.merge_block)
+        # jumping to the merge block if there is not break or continue
+        if not ctx.should_stop:
+            ctx.builder.branch(ctx.if_merge_block)
+
+        ctx.should_stop = False
 
         # replace the builder for else
         ctx.builder = IRBuilder(else_block)
         ctx = self.else_block.codegen(ctx)
 
         # replace the builder for merge block
-        ctx.builder = IRBuilder(ctx.merge_block)
+        ctx.builder = IRBuilder(ctx.if_merge_block)
 
         return ctx
 
@@ -547,9 +589,13 @@ class ElseBlock(DefaultBlock):
 
         for stmt in self.body:
             ctx = stmt.codegen(ctx)
+            if ctx.should_stop: break
 
-        # branch
-        ctx.builder.branch(ctx.merge_block)
+        # branch if we have not branched yet.
+        if not ctx.should_stop:
+            ctx.builder.branch(ctx.if_merge_block)
+
+        ctx.should_stop = False
 
         return ctx
 
@@ -576,28 +622,41 @@ class WhileBlock(DefaultBlock):
 
         # eval condition
         ctx.builder.branch(cond_block) # this builder is dead
-
         ctx.builder = IRBuilder(cond_block)
-
         ans = self.cond.codegen(ctx).suc_value
 
         # now branching according to result
         ctx.builder.cbranch(ans, body_block, else_block) # dead
-
         ctx.builder = IRBuilder(body_block)
+
+        # some preseving before body eval
+        pre_cond_block = ctx.cond_block
+        pre_merge_block = ctx.merge_block
+
+        # loading this loop's config
+        ctx.cond_block = cond_block
+        ctx.merge_block = merge_block
 
         # eval body
         for stmt in self.body:
             ctx = stmt.codegen(ctx)
+            if ctx.should_stop: break
 
-        ctx.builder.branch(cond_block)
+        # because we have aleady branched
+        if not ctx.should_stop:
+            ctx.builder.branch(cond_block)
 
         # setting up
         ctx.merge_block = merge_block
+        ctx.should_stop = False
 
         ctx.builder = IRBuilder(else_block)
         ctx = self.else_block.codegen(ctx)
 
         ctx.builder = IRBuilder(ctx.merge_block)
+        
+        # restoring the previous stuffs
+        ctx.cond_block = pre_cond_block
+        ctx.merge_block = pre_merge_block
 
         return ctx

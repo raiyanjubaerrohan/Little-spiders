@@ -566,6 +566,21 @@ class Parser:
 
         return nodes, None
 
+    def expect_eos(self, node):
+
+        eof, err = self.next_tok()
+        if eof: return "theend", Exception("@parser, expected at least an semicolon")
+        if err: return None, err
+
+        if err := self.expect(T_EOS, isType=True):
+            return None, err
+
+        eof, err = self.next_tok()
+        if eof: return "theend", Exception("@parser, expected more tokens to continue")
+        if err: return None, err
+
+        return node, None
+
     def parse(self) -> tuple[ DefaultBlock | Node | None, Exception | None]:
 
         if self.cur_tok == T_EOF:
@@ -583,26 +598,10 @@ class Parser:
             return self.parse_while()
 
         elif self.cur_tok.value == "continue":
-
-            if err := self.expect(T_EOS, isType=True):
-                return None, err
-
-            eof, err = self.next_tok()
-            if eof: return "theend", Exception("@parser, expected more tokens")
-            if err: return None, err
-
-            return ConstantNode(), None
+            return self.expect_eos(ContinueNode())
 
         elif self.cur_tok.value == "break":
-
-            if err := self.expect(T_EOS, isType=True):
-                return None, err
-
-            eof, err = self.next_tok()
-            if eof: return "theend", Exception("@parser, expected more tokens")
-            if err: return None, err
-
-            return BreakNode(), None
+            return self.expect_eos(BreakNode())
 
         #calling or assign entry point
         elif self.cur_tok == T_IDEN:

@@ -72,7 +72,6 @@ if not args.input_file:
 
 err_msg = "compile time error : {0}"
 f = open(args.input_file, "r")
-theEnd = False
 
 # set the context for modules
 parser.set_context(ctx, f)
@@ -87,13 +86,11 @@ if err:
 
 if args.debug: breakpoint()
 
-while not theEnd:
+while True:
 
     # the parsing area
     tlast, err = parser.parse()
-
     if tlast == "theend":
-        theEnd = True
         if err:
             print(err_msg.format(err))
             exit(1)
@@ -118,7 +115,7 @@ while not theEnd:
 
     # the codegen area
     ctx = tpast.codegen(ctx)
-
+    
 f.close()
 
 #manual thing for testing

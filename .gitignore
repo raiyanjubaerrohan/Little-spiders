@@ -1,6 +1,4 @@
 __pycache__/
-test/
 tester.ll
 tester
 t.py
-scanner.sh

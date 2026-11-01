@@ -9,6 +9,8 @@ from nodes import (
     BitNode,
     NegNode,
     StringNode,
+    BreakNode,
+    ContinueNode,
     IfElseBlock,
     WhileBlock,
     ElseBlock,
@@ -256,6 +258,9 @@ class Symanticizer:
 
         elif isinstance(self.cur_node, CallNode):
             ret_value = self.simanticize_callNode()
+
+        elif isinstance(self.cur_node, (BreakNode, ContinueNode)):
+            ret_value = (self.cur_node, None)
 
         elif isinstance(self.cur_node, IfElseBlock):
             ret_value = self.simanticize_if_elseBlock()

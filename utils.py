@@ -111,10 +111,15 @@ class Context:
     def __init__(self):
         self.builder = None
         self.merge_block = None
+        self.if_merge_block = None
         self.function_ptr = {}
-        # we have to put one element at least
         self.module = None
         self.suc_value = None
+
+        # only for loops
+        self.cond_block = None
+        self.should_stop = False
+        
         # will be added later on
 
     def initial(self, builder, module):
