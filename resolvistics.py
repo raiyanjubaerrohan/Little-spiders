@@ -1,5 +1,6 @@
 from nodes import (
     NegNode,
+    NotNode,
     BinOpNode,
     CompareNode,
     CastFloToInt,
@@ -42,7 +43,7 @@ class Resolver:
         tree = self.cur_node
         res = None
 
-        if isinstance(tree, NegNode):
+        if isinstance(tree, (NegNode, NotNode)):
             self.cur_node = tree.value
 
             res = self.resolve()

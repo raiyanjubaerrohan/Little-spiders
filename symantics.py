@@ -8,6 +8,7 @@ from nodes import (
     ConstantNode,
     BitNode,
     NegNode,
+    NotNode,
     StringNode,
     BreakNode,
     ContinueNode,
@@ -234,7 +235,7 @@ class Symanticizer:
             self.cur_node.llvm_type = self.exp_type
             ret_value = (self.cur_node, None)
 
-        elif isinstance(self.cur_node, NegNode):
+        elif isinstance(self.cur_node, (NegNode, NotNode)):
             node = self.cur_node
 
             self.cur_node = node.value

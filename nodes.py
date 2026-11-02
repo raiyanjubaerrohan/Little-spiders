@@ -79,6 +79,21 @@ class NegNode(Node):
     def __repr__(self):
         return f"Neg({self.value})"
 
+class NotNode(Node):
+    def __init__(self, value):
+        self.value = value
+        self.llvm_type = value.llvm_type
+
+    def __repr__(self):
+        return f"Not({self.value})"
+
+    def codegen(self, ctx) -> Context:
+        ctx.suc_value = ctx.builder.not_(
+            self.value.codegen(ctx).suc_value
+        )
+
+        return ctx
+
 class ConstantNode(Node):
     def __init__(self, value: int | float , _type = None):
         self.value = value #the constant number
@@ -101,7 +116,7 @@ class BitNode(Node):
     def __repr__(self):
         return f"Bit({self.value})"
 
-    def codegen(self, ctx):
+    def codegen(self, ctx) -> Context:
         ctx.suc_value = Constant(self.llvm_type, self.value)
 
         return ctx
@@ -117,7 +132,7 @@ class StringNode(Node):
     def codegen(self, ctx: Context) -> Context:
         self.value += '\0'
         #ensuring the null terminator
-
+        
         zero = Constant(IntType(32), 0)
 
         str_name = name_generator()
@@ -230,6 +245,13 @@ class CompareNode(Node):
             elif self.value == T_GTE:
                 ctx.suc_value = ctx.builder.icmp_signed('>=', ls, rs)
 
+            # and & or operations, a little weired
+            elif self.value.value == "and":
+                ctx.suc_value = ctx.builder.and_(ls, rs)
+
+            elif self.value.value == "or":
+                ctx.suc_value = ctx.builder.or_(ls, rs)
+
             else:
                 raise Exception("not a valid operation")
 
@@ -253,6 +275,13 @@ class CompareNode(Node):
 
         elif self.value == T_GTE:
             ctx.suc_value = ctx.builder.fcmp_ordered('>=', ls, rs)
+
+        # and & or operations, a little weired
+        elif self.value.value == "and":
+            ctx.suc_value = ctx.builder.and_(ls, rs)
+
+        elif self.value.value == "or":
+            ctx.suc_value = ctx.builder.or_(ls, rs)
 
         else:
             raise Exception("not a valid operation")
@@ -518,8 +547,11 @@ class DefaultBlock:
         if ctx.if_merge_block:
             ctx.builder.branch(ctx.if_merge_block)
 
-        else:
+        elif ctx.merge_block:
             ctx.builder.branch(ctx.merge_block)
+
+        else:
+            raise Exception("we do not have any merge block to jump")
 
         return ctx
 
@@ -591,11 +623,20 @@ class ElseBlock(DefaultBlock):
             ctx = stmt.codegen(ctx)
             if ctx.should_stop: break
 
-        # branch if we have not branched yet.
-        if not ctx.should_stop:
+        # we have already branched, so return
+        if ctx.should_stop:
+            ctx.should_stop = False
+            return ctx
+
+        # we haven't branched yet
+        if ctx.if_merge_block:
             ctx.builder.branch(ctx.if_merge_block)
 
-        ctx.should_stop = False
+        elif ctx.merge_block:
+            ctx.builder.branch(ctx.merge_block)
+
+        else:
+            raise Exception("we do not have any merge block to jump")
 
         return ctx
 
@@ -649,6 +690,7 @@ class WhileBlock(DefaultBlock):
         # setting up
         ctx.merge_block = merge_block
         ctx.should_stop = False
+        ctx.if_merge_block = None # the child if should be over, logicall
 
         ctx.builder = IRBuilder(else_block)
         ctx = self.else_block.codegen(ctx)

@@ -5,6 +5,7 @@ from nodes import (
     CompareNode,
     BinOpNode,
     NegNode,
+    NotNode,
     StringNode,
     VarFetchNode,
     VarAssignNode,
@@ -130,9 +131,9 @@ class Parser:
             if right == "theend": return right, err
             if err: return None, err
 
-            if lbp in (5,7):
+            if lbp in (7,9):
                 left = BinOpNode(operand, left, right)
-            elif lbp == 3:
+            elif lbp in (3,5):
                 left = CompareNode(operand, left, right)
 
             # I have covered all the cases
@@ -150,6 +151,14 @@ class Parser:
                 if self.cur_tok == T_SUB: layers.append(NegNode)
                 # there is not need for PosNode,
                 # it is not required
+
+                eof, err = self.next_tok()
+                if eof: return "theend", Exception("@parser, excpted more tokens")
+                if err: return None, err
+
+            elif self.cur_tok.value == "not":
+
+                layers.append(NotNode)
 
                 eof, err = self.next_tok()
                 if eof: return "theend", Exception("@parser, excpted more tokens")
@@ -259,16 +268,19 @@ class Parser:
     def get_binding_power(self, op) -> tuple[int, int, Exception | None]:
 
         if op.type in (T_ADD, T_SUB):
-            return 5, 6, None
+            return 7, 8, None
 
         if op.type in (T_MUL, T_DIV, T_MOD):
-            return 7, 8, None
+            return 9, 10, None
+
+        if op.value in ("and", "or"):
+            return 3, 4, None
 
         if op.type in (
             T_NEQ, T_EQS,
             T_LT, T_LTE,
             T_GT, T_GTE
-        ): return 3, 4, None
+        ): return 5, 6, None
 
         return 0, 0, Exception(f"@parser, invalid operand {op}")
 

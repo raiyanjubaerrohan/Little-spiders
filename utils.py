@@ -57,6 +57,9 @@ keywords = [
     "func",
     "break",
     "continue",
+    "and",
+    "or",
+    "not",
 ]
 
 
