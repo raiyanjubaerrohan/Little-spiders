@@ -222,7 +222,7 @@ class Lexer:
 
             # comment remover
             elif self.cur == "#":
-                while self.cur not in ('\n',''): self.next_chr()
+                while self.cur not in ('\n','', None): self.next_chr()
                 self.next_chr() #to escape the \n or eof
 
             else:

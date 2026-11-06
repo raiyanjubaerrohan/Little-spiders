@@ -91,6 +91,23 @@ def getCurrectType(ty) -> str:
 
     return str_repr
 
+def isSmallerThanEnd(cur, end):
+    if cur[0] >= end[0]: return False
+    if cur[0]+1 == end[0]:
+        # means it is the last line to scan
+        return cur[1] < end[1]
+
+    return cur[0] < end[0] or cur[1] < cur[1]
+
+def isGreaterThanOrEqualsToStart(cur, start):
+    if cur[0] < start[0]: return False
+    if cur[0] == start[0]:
+        return cur[1] >= start[1]
+
+    # it is not small, not equal
+    # means it is greater, so True
+    return True
+
 def get_generator():
     n = 0
     while True:

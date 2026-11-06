@@ -51,14 +51,12 @@ class Parser:
     def __init__(self):
         self.tokens:list[Token] = []
         self.cur_tok = None
-        self.cur_pos = -1
-        self.node_start = 0
+        self.cur_pos = 0
         self.EOE = [T_EOS]
         self.cache: list[tuple[int, Node | DefaultBlock]] = []
         self.indent = 0
         self.lexer = Lexer()
         self.ctx = None
-        self.file = None
 
     def start_up(self):
         self.cur_pos = -1
@@ -66,50 +64,28 @@ class Parser:
 
         return self.next_tok()
 
-    def consume(self) -> Exception | None:
-        line = self.file.read()
 
-        if line == "":
-            tokens = [Token(T_EOF, Position(0,0))]
-
-        else:
-            tokens, err = self.lexer.lex(line)
-            if err: return err
-
-        for tok in tokens:
-            self.tokens.append(tok)
-
-        return None
-
-
-    def set_context(self, ctx, file):
+    def set_context(self, ctx, tokens):
         self.ctx = ctx
-        self.file = file
+        self.tokens = tokens
+        self.cur_pos = -1
+        self.cur_tok = None
+
+        return self.next_tok()
 
 
     def next_tok(self) -> tuple[bool, Exception | None]:
         self.cur_pos += 1
+        self.cur_tok = self.tokens[self.cur_pos] if len(self.tokens) > self.cur_pos else None
 
-        if len(self.tokens) > self.cur_pos:
-            self.cur_tok = self.tokens[self.cur_pos]
-        else:
-            # self.cur_tok = None
-            if err := self.consume():
-                return False, err
-
-            self.cur_tok = self.tokens[self.cur_pos]
-
-        if self.cur_tok == T_EOF:
-            return True, None
-        else:
-            return False, None
+        return self.cur_tok == T_EOF
 
     def expr(self, min_bp = 0) -> tuple[Node | None, Exception | None]:
 
         left, err = self.factor()
 
         if left == "theend": return left, err
-        if err: return None, Exception("@parser, excepted more tokens")
+        if err: return None, err
 
         while self.cur_tok not in self.EOE:
 
@@ -164,50 +140,12 @@ class Parser:
                 if eof: return "theend", Exception("@parser, excpted more tokens")
                 if err: return None, err
 
-            elif self.cur_tok.typer in ("int", "float"):
-                layers.append(ConstantNode(
-                    self.cur_tok.value,
-                    self.cur_tok.typer
-                ))
-
-                eof, err = self.next_tok()
-                if eof: return "theend", Exception("@parser, excpted more tokens")
+            elif self.cur_tok.typer in ("int", "float", "char", "string", "bool"):
+                res, err = self.parse_literals()
+                if res == "theend": return res, err
                 if err: return None, err
 
-                # a leaf node so breaking the loop
-                break
-
-            elif self.cur_tok.typer == "char":
-                layers.append(ConstantNode(
-                    ord(self.cur_tok.value),
-                    self.cur_tok.typer
-                ))
-
-                eof, err = self.next_tok()
-                if eof: return "theend", Exception("@parser, expected more tokens")
-                if err: return None, err
-
-                # leaf node, so breaking the loop
-                break
-
-            elif self.cur_tok.typer == "string":
-                layers.append(StringNode(self.cur_tok.value))
-
-                eof, err = self.next_tok()
-                if eof: return "theend", Exception("@parser, expected more tokens")
-                if err: return None, err
-
-                # a leaf node so breaking the loop
-                break
-
-            elif self.cur_tok.typer == "bool":
-                layers.append(BitNode(self.cur_tok.value))
-                # a leaf node, so breaking the loop
-
-                eof, err = self.next_tok()
-                if eof: return "theend", Exception("@parser, expected more tokens")
-                if err: return None, err
-
+                layers.append(res)
                 break
 
             elif self.cur_tok == T_IDEN:
@@ -265,6 +203,35 @@ class Parser:
 
         return result, None
 
+    def parse_literals(self) -> tuple[Node | None | str, Exception | None]:
+        # this function is forbidden to call self.factor or self.expr
+
+        result = None
+    
+        if self.cur_tok.typer in ("int", "float"):
+            result = ConstantNode(
+                self.cur_tok.value,
+                self.cur_tok.typer
+            )
+
+        elif self.cur_tok.typer == "char":
+            result = ConstantNode(
+                ord(self.cur_tok.value),
+                self.cur_tok.typer
+            )
+
+        elif self.typer == "string":
+            result = StringNode(self.cur_tok.value)
+
+        elif self.typer == "bool":
+            result = BitNode(self.cur_tok.value)
+
+        eof, err = self.next_tok()
+        if eof: return "theend", err
+        if err: return None, err
+
+        return result, None
+        
     def get_binding_power(self, op) -> tuple[int, int, Exception | None]:
 
         if op.type in (T_ADD, T_SUB):
