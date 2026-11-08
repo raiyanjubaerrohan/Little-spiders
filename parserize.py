@@ -41,32 +41,22 @@ from utils import (
     T_MUL,
     T_DIV,
     T_MOD,
-    Position,
 )
 
-from lexical import Token, Lexer
+from diagnostical import Diagnostics
 
 class Parser:
 
-    def __init__(self):
+    def __init__(self, diagctx):
         self.tokens:list[Token] = []
         self.cur_tok = None
         self.cur_pos = 0
         self.EOE = [T_EOS]
         self.cache: list[tuple[int, Node | DefaultBlock]] = []
         self.indent = 0
-        self.lexer = Lexer()
-        self.ctx = None
+        self.diagctx = diagctx
 
-    def start_up(self):
-        self.cur_pos = -1
-        self.cur_tok = None
-
-        return self.next_tok()
-
-
-    def set_context(self, ctx, tokens):
-        self.ctx = ctx
+    def load(self, tokens):
         self.tokens = tokens
         self.cur_pos = -1
         self.cur_tok = None
@@ -76,7 +66,7 @@ class Parser:
 
     def next_tok(self) -> tuple[bool, Exception | None]:
         self.cur_pos += 1
-        self.cur_tok = self.tokens[self.cur_pos] if len(self.tokens) > self.cur_pos else None
+        self.cur_tok = self.tokens[self.cur_pos] if len(self.tokens) > self.cur_pos else T_EOF
 
         return self.cur_tok == T_EOF
 

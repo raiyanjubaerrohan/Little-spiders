@@ -19,13 +19,15 @@ from nodes import (
 )
 
 from utils import Symbol
+from diagnostical import Diagnostics
 
 class Resolver:
-    def __init__(self):
+    def __init__(self, diagctx):
         self.cur_node = None
         self.scope = 0
         self.variables_ptr = [{}]
         self.ctx = None
+        self.diagctx = diagctx
 
     def load(self, ast, ctx):
         self.cur_node = ast

@@ -110,30 +110,24 @@ def isGreaterThanOrEqualsToStart(cur, start):
 
 def get_generator():
     n = 0
-    while True:
+    while n <= 103377:
         yield "stringno"+str(n)
         n += 1
+
+    raise StopIteration
 
 names = get_generator()
 
 def name_generator():
     return next(names)
 
-class Position:
-    def __init__(self, start_pos: int = 0, end_pos: int = 1):
-        self.start_pos = start_pos
-        self.end_pos = end_pos
-
-    def __repr__(self):
-        return f"Position({self.start_pos}->{self.end_pos})"
-
 class Context:
-    def __init__(self):
-        self.builder = None
+    def __init__(self, builder, module):
+        self.builder = builder
         self.merge_block = None
         self.if_merge_block = None
         self.function_ptr = {}
-        self.module = None
+        self.module = module
         self.suc_value = None
 
         # only for loops
@@ -141,10 +135,6 @@ class Context:
         self.should_stop = False
         
         # will be added later on
-
-    def initial(self, builder, module):
-        self.builder = builder
-        self.module = module
 
     def add_func_entry(self, name, ptr, ret_type, params_type, var_arg):
         self.function_ptr[name] = {
@@ -167,3 +157,7 @@ class Symbol:
 
     def __repr__(self):
         return f"Sym({self.name}=>{self.llvm_type} at {self.ptr})"
+
+class CodegenError(Exception):
+    def __init__(self, msg):
+        super().__init__(msg)

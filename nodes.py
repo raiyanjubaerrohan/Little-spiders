@@ -14,6 +14,7 @@ from utils import (
 
     Context,
     getCurrectType,
+    CodegenError
 )
 
 from llvmlite.ir import (
@@ -66,7 +67,7 @@ class NegNode(Node):
             "double", "float",
             "long", "int", "short", "char", "bool"):
 
-            raise Exception(f"unknown type {llvm_type} for negation operation")
+            raise CodegenError(f"unknown type {llvm_type} for negation operation")
 
         elif llvm_type in ("double", "float"):
             ctx.suc_value = ctx.builder.fneg(llvm_res)
@@ -180,7 +181,7 @@ class BinOpNode(Node):
                 ctx.suc_value = ctx.builder.srem(ls, rs)
 
             else:
-                raise Exception("not a valid operation")
+                raise CodegenError("not a valid operation")
 
             return ctx
 
@@ -204,7 +205,7 @@ class BinOpNode(Node):
             ctx.suc_value = ctx.builder.frem(ls, rs)
 
         else:
-            raise Exception("not a valid operation")
+            raise CodegenError("not a valid operation")
 
         return ctx
 
@@ -253,7 +254,7 @@ class CompareNode(Node):
                 ctx.suc_value = ctx.builder.or_(ls, rs)
 
             else:
-                raise Exception("not a valid operation")
+                raise CodegenError("not a valid operation")
 
             return ctx
 
@@ -284,7 +285,7 @@ class CompareNode(Node):
             ctx.suc_value = ctx.builder.or_(ls, rs)
 
         else:
-            raise Exception("not a valid operation")
+            raise CodegenError("not a valid operation")
 
         return ctx
 
@@ -502,7 +503,7 @@ class BreakNode(Node):
     def codegen(self, ctx):
 
         if not ctx.cond_block:
-            raise Exception("break statement without any loop!")
+            raise CodegenError("break statement without any loop!")
 
         ctx.should_stop = True
         ctx.builder.branch(ctx.merge_block) # dead
@@ -526,7 +527,7 @@ class ContinueNode(Node):
     def codegen(self, ctx):
 
         if not ctx.cond_block:
-            raise Exception("continue statement without any loop!")
+            raise CodegenError("continue statement without any loop!")
 
         ctx.should_stop = True
         ctx.builder.branch(ctx.cond_block) # dead
@@ -551,7 +552,7 @@ class DefaultBlock:
             ctx.builder.branch(ctx.merge_block)
 
         else:
-            raise Exception("we do not have any merge block to jump")
+            raise CodegenError("we do not have any merge block to jump")
 
         return ctx
 
@@ -636,7 +637,7 @@ class ElseBlock(DefaultBlock):
             ctx.builder.branch(ctx.merge_block)
 
         else:
-            raise Exception("we do not have any merge block to jump")
+            raise CodegenError("we do not have any merge block to jump")
 
         return ctx
 

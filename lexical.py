@@ -28,12 +28,13 @@ from utils import (
     T_SQUTE,
     NUMBERS,
     ALPHABETS,
-    Position,
     keywords,
 )
 
+from diagnostical import Span, Diagnostics
+
 class Token:
-    def __init__(self, ty, pos: Position, val = 0, typ = 0):
+    def __init__(self, ty, pos: Span, val = 0, typ = 0):
         self.type = ty
         self.value = val
         self.typer = typ
@@ -57,13 +58,18 @@ class Token:
 
 class Lexer:
 
-    def __init__(self):
-        self.pos = 0
-        self.text = ""
+    def __init__(self, text, diagctx):
+        self.pos = -1
+        self.text = text
         self.cur = None
+        self.span_cur = -1
+        self.ln = 0
+        self.diagctx = diagctx
+        self.next_chr()
 
     def next_chr(self):
         self.pos += 1
+        self.span_cur += 1
 
         if len(self.text) > self.pos:
             self.cur = self.text[self.pos]
@@ -72,13 +78,9 @@ class Lexer:
 
         #end
 
-    def lex(self, text: str) -> tuple[list[Token] | None, Exception | None]:
+    def lex(self) -> list[Token] | None:
 
         tokens: list[Token] = []
-        self.text = text
-        self.pos = -1
-        self.cur = None
-        self.next_chr()
 
         while self.cur is not None:
 
@@ -86,97 +88,97 @@ class Lexer:
                 tokens.append(self.makeIdentifier())
 
             elif self.cur in NUMBERS:
-                res, err = self.makeNumber()
-                if err: return None, err
-                tokens.append(res)
+                if res := self.makeNumber():
+                    tokens.append(res)
 
             elif self.cur == ' ': #space char
                 self.next_chr()
 
             elif self.cur == '\n': #new line
+                self.ln += 1
+                self.span_cur = -1
                 self.next_chr()
 
             elif self.cur == '\t': #tab char
                 self.next_chr()
 
             elif self.cur == '+':
-                pos = Position(self.pos, self.pos+1)
+                pos = Span((self.ln, self.span_cur), (self.ln+1, self.span_cur+1))
                 tokens.append(Token(T_ADD, pos))
                 self.next_chr()
 
             elif self.cur == '-':
-                pos = Position(self.pos, self.pos+1)
+                pos = Span((self.ln, self.span_cur), (self.ln+1, self.span_cur+1))
                 tokens.append(Token(T_SUB, pos))
                 self.next_chr()
 
             elif self.cur == '*':
-                pos = Position(self.pos, self.pos+1)
+                pos = Span((self.ln, self.span_cur), (self.ln+1, self.span_cur+1))
                 tokens.append(Token(T_MUL, pos))
                 self.next_chr()
 
             elif self.cur == '/':
-                pos = Position(self.pos, self.pos+1)
+                pos = Span((self.ln, self.span_cur), (self.ln+1, self.span_cur+1))
                 tokens.append(Token(T_DIV, pos))
                 self.next_chr()
 
             elif self.cur == '%':
-                pos = Position(self.pos, self.pos+1)
+                pos = Span((self.ln, self.span_cur), (self.ln+1, self.span_cur+1))
                 tokens.append(Token(T_MOD, pos))
                 self.next_chr()
 
             elif self.cur == '?':
-                pos = Position(self.pos, self.pos+1)
+                pos = Span((self.ln, self.span_cur), (self.ln+1, self.span_cur+1))
                 tokens.append(Token(T_QUS, pos))
                 self.next_chr()
 
             elif self.cur == ':':
-                pos = Position(self.pos, self.pos+1)
+                pos = Span((self.ln, self.span_cur), (self.ln+1, self.span_cur+1))
                 tokens.append(Token(T_COLON, pos))
                 self.next_chr()
 
             elif self.cur == ',':
-                pos = Position(self.pos, self.pos+1)
+                pos = Span((self.ln, self.span_cur), (self.ln+1, self.span_cur+1))
                 tokens.append(Token(T_COMMA, pos))
                 self.next_chr()
 
             elif self.cur in ('=','!'):
-                res, err = self.makeEqs()
-                if err: return None, err
-                tokens.append(res)
+                if res := self.makeEqs():
+                    tokens.append(res)
 
             elif self.cur == '<':
-                tokens.append(self.makeLT())
+                tokens.append(self.makeLTorGT(T_LT))
 
             elif self.cur == '>':
-                tokens.append(self.makeGT())
+                tokens.append(self.makeLTorGT(T_GT))
 
             elif self.cur == '(':
-                pos = Position(self.pos, self.pos+1)
+                pos = Span((self.ln, self.span_cur), (self.ln+1, self.span_cur+1))
                 tokens.append(Token(T_LPAN1, pos))
                 self.next_chr()
 
             elif self.cur == ')':
-                pos = Position(self.pos, self.pos+1)
+                pos = Span((self.ln, self.span_cur), (self.ln+1, self.span_cur+1))
                 tokens.append(Token(T_RPAN1, pos))
                 self.next_chr()
 
             elif self.cur == '{':
-                pos = Position(self.pos, self.pos+1)
+                pos = Span((self.ln, self.span_cur), (self.ln+1, self.span_cur+1))
                 tokens.append(Token(T_LPAN2, pos))
                 self.next_chr()
 
             elif self.cur == '}':
-                pos = Position(self.pos, self.pos+1)
+                pos = Span((self.ln, self.span_cur), (self.ln+1, self.span_cur+1))
                 tokens.append(Token(T_RPAN2, pos))
                 self.next_chr()
 
             elif self.cur == '[':
-                pos = Position(self.pos, self.pos+1)
+                pos = Span((self.ln, self.span_cur), (self.ln+1, self.span_cur+1))
                 tokens.append(Token(T_LPAN3, pos))
                 self.next_chr()
 
             elif self.cur == ']':
-                pos = Position(self.pos, self.pos+1)
+                pos = Span((self.ln, self.span_cur), (self.ln+1, self.span_cur+1))
                 tokens.append(Token(T_RPAN3, pos))
                 self.next_chr()
 
@@ -187,16 +189,13 @@ class Lexer:
 
             elif self.cur == "'":
 
-                start = self.pos
+                start = (self.ln, self.span_cur)
                 self.next_chr() # consume the '
 
-                res, err = self.makeEscapeSequence()
-                if err: return None, err
-
-                if res:
+                if res := self.makeEscapeSequence():
                     tokens.append(Token(
                         T_SQUTE,
-                        Position(start, self.pos),
+                        Span(start, (self.ln+1, self.span_cur+1)),
                         res,
                         "char"
                     ))
@@ -204,7 +203,7 @@ class Lexer:
                 else:
                     tokens.append(Token(
                         T_SQUTE,
-                        Position(start, self.pos+1),
+                        Span(start, (self.ln+1, self.span_cur+1)),
                         self.cur,
                         "char"
                     ))
@@ -216,7 +215,7 @@ class Lexer:
                 # and one for the single quote
 
             elif self.cur == ";":
-                pos = Position(self.pos, self.pos+1)
+                pos = Span((self.ln, self.span_cur), (self.ln+1, self.span_cur+1))
                 tokens.append(Token(T_EOS, pos))
                 self.next_chr()
 
@@ -226,66 +225,67 @@ class Lexer:
                 self.next_chr() #to escape the \n or eof
 
             else:
-                return None, Exception(f"@lexer, invalid token '{self.cur}'")
+                self.diagctx.emit(Diagnostcs(
+                    f"unknown symbol '{self.cur}' is used",
+                    "L0638",
+                    Span((self.ln, self.span_cur), (self.ln+1, self.span_cur+1)),
+                    "remove this"
+                ))
 
-        return tokens, None
+                self.next_chr()
+
+        return tokens
         #end
 
-    def makeLT(self):
-        start_pos = self.pos
+    def makeLTorGT(self, toktype):
+        start_pos = (self.ln, self.span_cur)
         self.next_chr()
 
         if self.cur == '=':
             self.next_chr()
-            pos = Position(start_pos, self.pos)
-            return Token(T_LTE, pos)
+            pos = Span(start_pos, (self.ln+1, self.span_cur+1))
+            return Token(toktype+"E", pos)
 
-        pos = Position(start_pos, self.pos)
-        return Token(T_LT, pos)
-
-
-    def makeGT(self):
-        start_pos = self.pos
-        self.next_chr()
-
-        if self.cur == '=':
-            self.next_chr()
-            pos = Position(start_pos, self.pos)
-            return Token(T_GTE, pos)
-
-        pos = Position(start_pos, self.pos)
-        return Token(T_GT, pos)
+        pos = Span(start_pos, (self.ln+1, self.span_cur+1))
+        return Token(toktype, pos)
 
     def makeEqs(self):
         eqs = ''
-        start_pos = self.pos
+        start_pos = (self.ln, self.span_cur)
 
         while (self.cur is not None
         and self.cur in ('=','>','!')):
             eqs += self.cur
             self.next_chr()
 
-        pos = Position(start_pos, self.pos)
+        pos = Span(start_pos, (self.ln+1, self.span_cur+1))
 
         if eqs == '=':
-            return Token(T_EQ, pos), None
+            return Token(T_EQ, pos)
 
         if eqs == '==':
-            return Token(T_EQS, pos), None
+            return Token(T_EQS, pos)
 
         if eqs == '!=':
-            return Token(T_NEQ, pos),  None
+            return Token(T_NEQ, pos)
 
         if eqs == '=>':
-            return Token(T_ARROW, pos), None
+            return Token(T_ARROW, pos)
 
-        return None, Exception(f"@lexer, invalid token {eqs}")
+        self.diagctx.emit(Diagnostics(
+            f"unknown symbol '{eqs}' is used",
+            "L0647",
+            pos,
+            smsg="currect this"
+        ))
+        
+        return None
 
     def makeNumber(self):
         num_str = ''
         dots = 0
         have_error = False
-        start_pos = self.pos
+        start_pos = (self.ln, self.span_cur)
 
         while (self.cur is not None
         and self.cur in NUMBERS+'.'):
@@ -296,55 +296,70 @@ class Lexer:
             num_str += self.cur
             self.next_chr()
 
-        pos = Position(start_pos, self.pos)
+        pos = Span(start_pos, (self.ln+1, self.span_cur+1))
 
         if have_error:
-            return None, Exception(f"@lexer, invalid number {num_str}")
+            self.diagctx.emit(Diagnostcs(
+                f"invalid number {num_str} with many dots",
+                "L0650",
+                pos,
+                "remove the extra dots"
+            ))
+
+            return None
 
         if dots == 1:
-            return Token(T_LITERAL, pos, float(num_str), "float"), None
+            return Token(T_LITERAL, pos, float(num_str), "float")
 
-        return Token(T_LITERAL, pos, int(num_str), "int"), None
+        return Token(T_LITERAL, pos, int(num_str), "int")
 
     def makeString(self):
-        start_pos = self.pos
+        start_pos = (self.ln, self.span_cur)
         self.next_chr()
         string = ''
 
         while self.cur not in (None, '"'):
 
-            res, err = self.makeEscapeSequence()
-            if err: return None, err
-
-            if res: string += res
-            else: string += self.cur
+            if res := self.makeEscapeSequence():
+                string += res
+            else:
+                string += self.cur
 
             self.next_chr()
 
         self.next_chr()
 
-        pos = Position(start_pos, self.pos)
+        pos = Span(start_pos,(self.ln+1, self.span_cur+1))
 
         return Token(T_LITERAL, pos, str(string), "string"), None
 
     def makeEscapeSequence(self):
 
+        start_pos = (self.ln, self.span_cur)
+
         if self.cur == '\\':
             self.next_chr()
 
-            if self.cur == 'n': return '\n', None
-            if self.cur == 't': return '\t', None
-            if self.cur == '"': return '\'', None
-            if self.cur == "'": return '\"', None
-            if self.cur == '\\': return '\\',None
-            return None, Exception(f"@lexer, unknown escape sequence \\{self.cur}")
+            if self.cur == 'n': return '\n'
+            if self.cur == 't': return '\t'
+            if self.cur == '"': return '\''
+            if self.cur == "'": return '\"'
+            if self.cur == '\\': return '\\'
 
-        return None, None
+            span = Span(start_pos, (self.ln+1, self.span_cur+1))
+            self.diagctx.emit(Diagnostics(
+                f"invalid escape sequence '\\{self.cur}' is used",
+                "L0663",
+                span,
+                "remove this"
+            ))
+
+        return None
 
     def makeIdentifier(self):
         iden = ''
 
-        start_pos = self.pos
+        start_pos = (self.ln, self.span_cur)
 
         while (self.cur is not None
         and self.cur in ALPHABETS+'_'+NUMBERS):
@@ -352,7 +367,7 @@ class Lexer:
 
             self.next_chr()
 
-        pos = Position(start_pos, self.pos)
+        pos = Span(start_pos, (self.ln+1, self.span_cur+1))
 
         if iden in keywords:
             return Token(T_KEY, pos, str(iden))

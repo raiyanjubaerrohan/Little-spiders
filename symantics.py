@@ -32,6 +32,8 @@ from llvmlite.ir import (
 	PointerType,
 )
 
+from diagnostical import Diagnostics
+
 type_casting = {
     "double": {
         "float": CastFloHigh,
@@ -91,16 +93,13 @@ type_casting = {
 
 class Symanticizer:
 
-    def __init__(self):
+    def __init__(self, diagctx):
         self.cur_node = None
         self.exp_type = None
-        self.ctx = None
+        self.diagctx = diagctx
 
-    def load(self, ast, ctx) -> None:
+    def load(self, ast) -> None:
         self.cur_node = ast
-        self.ctx = ctx
-
-        return None
 
     def simanticize_varDecNode(self) -> tuple[Node | None, Exception | None]:
         varDec = self.cur_node

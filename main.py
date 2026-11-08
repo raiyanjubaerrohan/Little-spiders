@@ -1,11 +1,12 @@
+import argparse, sys, os
+
+from lexical import Lexer, Token
 from parserize import Parser
 from symantics import Symanticizer
-from utils import Context
+from utils import Context, T_EOF, CodegenError
 from resolvistics import Resolver
-import argparse
-
+from diagnostical import DiagContext
 from llvmlite import ir
-
 
 #parsing the arguments
 argParser = argparse.ArgumentParser(prog="spiders")
@@ -18,12 +19,22 @@ argParser.add_argument("-p", "--print-llvm",
     action="store_true", help="prints the LLVM IR")
 argParser.add_argument("-d", "--debug", action="store_true",
     help="enables debug mode")
+argParser.add_argument("-t", "--target", nargs=1, default=["aarch64-unknown-linux-android24"],
+    help="optional custom target triple")
 
 args = argParser.parse_args()
 
-#the module
+if args.input_file and os.path.exists(args.input_file):
+    f = open(args.input_file, mode="rt", encoding="utf-8")
+    content = f.read()
+    f.close()
+else:
+    print("error: you haven't passed any input file or the file does not exists")
+    sys.exit(1)
+
+# the module
 module = ir.Module(name=args.input_file)
-module.triple = "aarch64-unknown-linux-android24"
+module.triple = args.target[0]
 module.data_layout = ("e-m:e-p270:32:32-p271:32:32-p272:64:64-"+
 "i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128-Fn32")
 
@@ -45,14 +56,13 @@ printFunc = ir.Function(
     "printf"
 )
 
-#context
-ctx = Context()
-ctx.initial(
+# context
+ctx = Context(
     ir.IRBuilder(mainfunc.append_basic_block(name="entry")),
     module
 )
+diagctx = DiagContext(content)
 
-# the function entry
 ctx.add_func_entry(
     name="print",
     ptr=printFunc,
@@ -62,61 +72,52 @@ ctx.add_func_entry(
 )
 
 # init custom modules
-parser = Parser()
-simanticizer = Symanticizer()
-resolver = Resolver()
+lexer = Lexer(content, diagctx)
+parser = Parser(diagctx)
+simanticizer = Symanticizer(diagctx)
+resolver = Resolver(diagctx)
 
-if not args.input_file:
-    print("error: no file input")
-    exit(0)
-
-err_msg = "compile time error : {0}"
-f = open(args.input_file, "r")
-
-# set the context for modules
-parser.set_context(ctx, f)
-pexit, err = parser.start_up()
-if pexit:
-    print("there is nothing to parse!!")
-    exit(0)
-
-if err:
-    print(err_msg.format(err))
-    exit(1)
-
+# debug just the moment before
 if args.debug: breakpoint()
 
-while True:
+# running lexer becuse lexer can tokenize an entire file
+tokens = lexer.lex()
+if diagctx.has_error():
+    diagctx.render()
+    sys.exit(1)
 
-    # the parsing area
-    tlast, err = parser.parse()
-    if tlast == "theend":
-        if err:
-            print(err_msg.format(err))
-            exit(1)
-        break
+print(tokens)
+sys.exit(0)
 
-    elif err:
-        print(err_msg.format(err))
-        exit(1)
+tokens.append(Token(T_EOF))
+if eof := parser.load(tokens):
+    print("the given file is empty")
+    sys.exit(0)
 
-    # the resolver area
-    resolver.load(tlast, ctx)
-    if err := resolver.resolve():
-        print(err_msg.format(err))
-        exit(1)
+# the loop (temporary)
+running = True
+while running:
+    # parse
+    raw_ast = parser.parse()
+    if raw_ast == "theend": running = False
 
-    # the simantics area
-    simanticizer.load(tlast, ctx)
-    tpast, err = simanticizer.simanticize()
-    if err:
-        print(err_msg.format(err))
-        exit(1)
+    # resolve
+    resolver.load(raw_ast, ctx)
+    sym_ast = resolver.resolve()
 
-    # the codegen area
-    ctx = tpast.codegen(ctx)
-    
-f.close()
+    # simanticize
+    simanticizer.load(sym_ast)
+    complete_ast = simanticizer.simanticize()
+
+    if diagctx.has_error(): break
+
+    try: ctx = complete_ast.codegen(ctx)
+    except CodegenError as ce:
+        print(f"codegen error: {ce}")
+
+if diagctx.has_error():
+    diagctx.render()
+    sys.exit(1)
 
 #manual thing for testing
 #will be automated soon...
