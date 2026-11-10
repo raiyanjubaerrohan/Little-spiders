@@ -20,7 +20,6 @@ from utils import (
 
 from llvmlite.ir import (
     IntType,
-    FloatType,
     Constant,
     ArrayType,
     IRBuilder,
@@ -324,7 +323,7 @@ class CastFloToInt(Node):
 
 
 class CastIntToFlo(Node):
-    def __init__(self, value: Node, casting_typ,  span: Span):
+    def __init__(self, value: Node, casting_type,  span: Span):
         super().__init__(value, span)
         self.llvm_type = getCurrectType(casting_type)
         self.type = casting_type
@@ -446,7 +445,7 @@ class VarDeclareNode(Node):
 
         self.value.llvm_type = getCurrectType(self.value.llvm_type)
 
-        varAssNode = VarAssignNode(self.value, self.expr)
+        varAssNode = VarAssignNode(self.value, self.expr, self.expr.span)
 
         ctx = varAssNode.codegen(ctx)
         ctx.suc_value = self.value.ptr

@@ -45,7 +45,8 @@ from utils import (
     T_POISON,
 )
 
-from diagnostical import Diagnostics
+from lexical import Token
+from diagnostical import Diagnostics, Span
 
 class Parser:
 
@@ -89,7 +90,7 @@ class Parser:
             if lbp < min_bp:
                 break
 
-            if eof := self.next_tok():
+            if self.next_tok():
                 self.diagctx.emit(Diagnostics(
                     "the parser is expecting more tokens to build a tree",
                     "P0337",
@@ -133,7 +134,7 @@ class Parser:
                 # there is not need for PosNode,
                 # it is not required
 
-                if eof := self.next_tok():
+                if self.next_tok():
                     self.diagctx.emit(Diagnostics(
                         "the parser is expecting more tokens to build a tree",
                         "P0337",
@@ -145,7 +146,7 @@ class Parser:
 
                 layers.append((NotNode, self.start_pos))
 
-                if eof := self.next_tok():
+                if self.next_tok():
                     self.diagctx.emit(Diagnostics(
                         "the parser is expecting more tokens to build a tree",
                         "P0337",
@@ -163,7 +164,7 @@ class Parser:
             elif self.cur_tok == T_IDEN:
                 iden = self.cur_tok
 
-                if eof := self.next_tok():
+                if self.next_tok():
                     self.diagctx.emit(Diagnostics(
                         "the parser is expecting more tokens to build a tree",
                         "P0337",
@@ -181,7 +182,7 @@ class Parser:
 
             elif self.cur_tok == T_LPAN1:
 
-                if eof := self.next_tok():
+                if self.next_tok():
                     self.diagctx.emit(Diagnostics(
                         "the parser is expecting more tokens to build a tree",
                         "P0337",
@@ -196,7 +197,7 @@ class Parser:
                 if self.cur_tok == T_RPAN1:
                     end_pos = self.cur_tok.pos
 
-                    if eof := self.next_tok():
+                    if self.next_tok():
                         self.diagctx.emit(Diagnostics(
                             "Expected at least a semicolon to end the expression",
                             "P0334",
@@ -211,7 +212,7 @@ class Parser:
                     self.diagctx.emit(Diagnostics(
                         "found no closing paranthisis!",
                         "P0459",
-                        start_pos + self.cur_tok.pos
+                        self.start_pos + self.cur_tok.pos
                     ))
                     return
             else:
@@ -264,7 +265,7 @@ class Parser:
 
         # there is no else because the call path is already fitered
 
-        if eof := self.next_tok():
+        if self.next_tok():
             self.diagctx.emit(Diagnostics(
                 "the parser is expecting more tokens to build a tree",
                 "P0337",
@@ -322,7 +323,7 @@ class Parser:
 
     def parse_var(self) -> VarDeclareNode | str:
 
-        if eof := self.next_tok():
+        if self.next_tok():
             self.diagctx.emit(Diagnostics(
                 "the parser is expecting more tokens to build a tree",
                 "P0337",
@@ -338,7 +339,7 @@ class Parser:
         var_type = 0
         var_expr = 0
 
-        if eof := self.next_tok():
+        if self.next_tok():
             self.diagctx.emit(Diagnostics(
                 "the parser is excepting more tokens to build a tree",
                 "P0337",
@@ -349,7 +350,7 @@ class Parser:
         if self.cur_tok == T_COLON:
             last_pos = self.cur_tok.pos
 
-            if eof := self.next_tok():
+            if self.next_tok():
                 self.diagctx.emit(Diagnostics(
                     "the parser is excepting more tokens to build a tree",
                     "P0337",
@@ -367,7 +368,7 @@ class Parser:
 
             var_type = self.cur_tok
             
-            if eof := self.next_tok():
+            if self.next_tok():
                 self.diagctx.emit(Diagnostics(
                     "the parser is excepting more tokens to build a tree",
                     "P0337",
@@ -376,7 +377,7 @@ class Parser:
 
         if self.cur_tok == T_EQ:
             last_pos = self.cur_tok.pos
-            if eof := self.next_tok():
+            if self.next_tok():
                 self.diagctx.emit(Diagnostics(
                     "the parser is excepting more tokens to build a tree",
                     "P0337",
@@ -415,7 +416,7 @@ class Parser:
 
     def parse_assign(self, iden) -> VarAssignNode | str:
 
-        if eof := self.next_tok():
+        if self.next_tok():
             self.diagctx.emit(Diagnostics(
                 "the parser is excepting more tokens to build a tree",
                 "P0337",
@@ -437,7 +438,7 @@ class Parser:
 
     def parse_if(self) -> IfElseBlock | str:
 
-        if eof := self.next_tok():
+        if self.next_tok():
             self.diagctx.emit(Diagnostics(
                 "the parser is expecting a condition after if keyword",
                 "P0482",
@@ -498,7 +499,7 @@ class Parser:
 
     def parse_else(self) -> ElseBlock | str:
 
-        if eof := self.next_tok(): #consume else key
+        if self.next_tok(): #consume else key
             self.diagctx.emit(Diagnostics(
                 "the parser is excepting more tokens to build a tree",
                 "P0337",
@@ -519,7 +520,7 @@ class Parser:
     def parse_while(self) -> WhileBlock | str:
 
         # consume the while
-        if eof := self.next_tok():
+        if self.next_tok():
             self.diagctx.emit(Diagnostics(
                 "the parser is expecting a condition after while keyword",
                 "P0482",
@@ -582,7 +583,7 @@ class Parser:
         err_msg = ("the parser is expecting more tokens to "+
             "complete parsing the call expr")
 
-        if eof := self.next_tok():
+        if self.next_tok():
             self.diagctx.emit(Diagnostics(
                 err_msg,
                 "P0749",
@@ -621,7 +622,7 @@ class Parser:
                 if self.cur_tok == T_COMMA:
                     last_pos = self.cur_tok.pos
                     
-                    if eof := self.next_tok():
+                    if self.next_tok():
                         self.diagctx.emit(Diagnostics(
                             "we expected an expression after comma "
                             "then a closing parenthisis",
@@ -639,7 +640,7 @@ class Parser:
         # restoring eoe
         self.EOE = pre_eoe
 
-        if eof := self.next_tok():
+        if self.next_tok():
             self.diagctx.emit(Diagnostics(
                 "we expected at least a closing parentthisis to end this expression",
                 "P0356",
@@ -651,7 +652,7 @@ class Parser:
 
     def parse_block(self) -> list[Node | DefaultBlock] | str:
 
-        if err := self.expect(T_LPAN2):
+        if self.expect(T_LPAN2):
             self.diagctx.emit(Diagnostics(
                 "we expect a { at the beginning of a block",
                 "P0935",
@@ -661,7 +662,7 @@ class Parser:
 
         last_pos = self.cur_tok.pos
         
-        if eof := self.next_tok():
+        if self.next_tok():
             self.diagctx.emit(Diagnostics(
                 "we expect a } at the end of a block but none were given",
                 "P0935",
@@ -686,14 +687,14 @@ class Parser:
 
         self.start_pos = pre_start_pos
 
-        if eof := self.next_tok():
+        if self.next_tok():
             return "theend"
 
         return nodes
 
     def expect_eos(self, node):
 
-        if eof := self.next_tok():
+        if self.next_tok():
             self.diagctx.emit(Diagnostics(
                 "we expected at least one semicolon to continue",
                 "P0395",
@@ -704,7 +705,7 @@ class Parser:
             self.diagctx.emit(err)
             return T_POISON
 
-        if eof := self.next_tok():
+        if self.next_tok():
             self.diagctx.emit(Diagnostics(
                 "we expect more tokens to continue parsing",
                 "P0337",
@@ -741,7 +742,7 @@ class Parser:
 
             iden_name = self.cur_tok
 
-            if eof := self.next_tok():
+            if self.next_tok():
                 self.diagctx.emit(Diagnostics(
                     "we expect a equal sign '=' or a prenthisis after an identifier "
                     "at the start of a instruction",
@@ -762,7 +763,7 @@ class Parser:
                     self.diagctx.emit(err)
                     return T_POISON
 
-                if eof := self.next_tok():
+                if self.next_tok():
                     return "theend"
 
                 return res

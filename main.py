@@ -1,9 +1,9 @@
 import argparse, sys, os
 
-from lexical import Lexer, Token
+from lexical import Lexer
 from parserize import Parser
 from symantics import Symanticizer
-from utils import Context, T_EOF, CodegenError
+from utils import Context, CodegenError
 from resolvistics import Resolver
 from diagnostical import DiagContext
 from llvmlite import ir
@@ -128,6 +128,6 @@ ctx.builder.ret(ir.Constant(ir.IntType(32),0))
 if args.print_llvm:
     print(module)
 
-with open(args.output[0], "w") as outputFile:
+with open(args.output[0], mode="w", encoding="utf-8") as outputFile:
     outputFile.write(str(module))
     outputFile.close()

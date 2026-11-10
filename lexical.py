@@ -20,9 +20,7 @@ from utils import (
     T_EOS,
     T_EQ,
     T_EQS,
-    T_GTE,
     T_GT,
-    T_LTE,
     T_LT,
     T_LITERAL,
     T_SQUTE,
@@ -225,11 +223,11 @@ class Lexer:
                 self.next_chr() #to escape the \n or eof
 
             else:
-                self.diagctx.emit(Diagnostcs(
+                self.diagctx.emit(Diagnostics(
                     f"unknown symbol '{self.cur}' is used",
                     "L0638",
                     Span((self.ln, self.span_cur), (self.ln+1, self.span_cur+1)),
-                    "remove this"
+                    smsg="remove this"
                 ))
 
                 self.next_chr()
@@ -299,11 +297,11 @@ class Lexer:
         pos = Span(start_pos, (self.ln+1, self.span_cur+1))
 
         if have_error:
-            self.diagctx.emit(Diagnostcs(
+            self.diagctx.emit(Diagnostics(
                 f"invalid number {num_str} with many dots",
                 "L0650",
                 pos,
-                "remove the extra dots"
+                smsg="remove the extra dots"
             ))
 
             return None
@@ -351,7 +349,7 @@ class Lexer:
                 f"invalid escape sequence '\\{self.cur}' is used",
                 "L0663",
                 span,
-                "remove this"
+                smsg="remove this"
             ))
 
         return None

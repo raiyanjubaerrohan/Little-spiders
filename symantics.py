@@ -111,9 +111,7 @@ class Symanticizer:
         if err: return None, err
 
         self.cur_node = expr
-        comp_res, err = self.make_compatible(
-            varDec.value.llvm_type, expr.llvm_type
-        )
+        comp_res, err = self.make_compatible(varDec.value.llvm_type, expr.llvm_type)
         if err: return None, err
 
         #lastly assign the compatable result
@@ -142,7 +140,7 @@ class Symanticizer:
         # because I have one in
         # node.value.llvm_type
 
-        return VarAssignNode(node.value, comp_res), None
+        return VarAssignNode(node.value, comp_res, node.span), None
 
     def simanticize_opNode(self):
 
@@ -201,7 +199,7 @@ class Symanticizer:
         if err: return None, err
         # this will set self.exp_type automatically
 
-        cmpNode = CompareNode(tree.value, ty_lhs, ty_rhs)
+        cmpNode = CompareNode(tree.value, ty_lhs, ty_rhs, tree.span)
 
         cmpNode.llvm_type = "bool"
         cmpNode.mean_type = self.exp_type
@@ -221,7 +219,7 @@ class Symanticizer:
             ret_value = self.simanticize_varAssNode()
 
         elif isinstance(self.cur_node, (BinOpNode, BitOpNode)):
-            ret_value = self.simanticize_binOpNode()
+            ret_value = self.simanticize_opNode()
 
         elif isinstance(self.cur_node, CompareNode):
             ret_value = self.simanticize_compareNode()
@@ -314,7 +312,7 @@ class Symanticizer:
 
                 typed_params.append(comp_res)
 
-            callNode = CallNode(node.value, typed_params)
+            callNode = CallNode(node.value, typed_params, node.span)
             callNode.llvm_type = node.llvm_type["ret_type"]
 
             self.exp_type = callNode.llvm_type
@@ -373,7 +371,7 @@ class Symanticizer:
 
             n += 1
 
-        callNode = CallNode(node.value, typed_params)
+        callNode = CallNode(node.value, typed_params, node.span)
         callNode.llvm_type = node.llvm_type["ret_type"]
 
         self.exp_type = callNode.llvm_type
@@ -406,7 +404,7 @@ class Symanticizer:
         res_else_block, err = self.simanticize()
         if err: return None, err
 
-        return IfElseBlock(res_cond, stmts, res_else_block), None
+        return IfElseBlock(res_cond, stmts, res_else_block, if_block.span), None
 
     def simanticize_whileBlock(self) -> tuple[
         WhileBlock | None,
@@ -436,7 +434,7 @@ class Symanticizer:
         res_else_block, err = self.simanticize()
         if err:  return None, err
 
-        return WhileBlock(res_cond, stmts, res_else_block), None
+        return WhileBlock(res_cond, stmts, res_else_block, while_block.span), None
 
     def simanticize_elseBlock(self) -> tuple[
         ElseBlock | None,
@@ -455,7 +453,7 @@ class Symanticizer:
 
             stmts.append(res)
 
-        return ElseBlock(stmts), None
+        return ElseBlock(stmts, else_block.span), None
 
     def get_currect_type(self) -> tuple[
         IntType | DoubleType | FloatType | PointerType | None,
@@ -624,11 +622,11 @@ class Symanticizer:
             #this is different because of optimization
             if lhs == "bool":
                 lhs.llvm_type = IntType(1)
-                lhs = CastIntHigh(lhs, IntType(8))
+                lhs = CastIntHigh(lhs, IntType(8), lhs.span)
 
             if rhs == "bool":
                 rhs.llvm_type = IntType(1)
-                rhs = CastIntHigh(rhs, IntType(8))
+                rhs = CastIntHigh(rhs, IntType(8), rhs.span)
 
             self.exp_type = "char"
 
