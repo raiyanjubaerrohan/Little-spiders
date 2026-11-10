@@ -35,6 +35,7 @@ class Diagnostics:
         msg: str,
         rule: str,
         span: Span,
+        *,
         smsg: str | None = None, # secodary msg
         _help: str | None = None, # optional help
     ):

@@ -1,3 +1,7 @@
-let x = "gugu gaga \k";
+let x = 20 + -30 + print("hell\n");
 
-388*-+!
+if x >  {
+	print("\"hello world\"\n");
+}
+
+print("always\n");

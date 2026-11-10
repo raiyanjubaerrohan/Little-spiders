@@ -14,7 +14,8 @@ from utils import (
 
     Context,
     getCurrectType,
-    CodegenError
+    CodegenError,
+    Symbol,
 )
 
 from llvmlite.ir import (
@@ -26,12 +27,15 @@ from llvmlite.ir import (
     GlobalVariable,
 )
 
+from diagnostical import Span
+from lexical import Token
+
 #base class
 class Node:
-    def __init__(self, value):
+    def __init__(self, value, span):
         self.value = value #just a place holder
         self.llvm_type = ""
-
+        self.span = span
 
     def codegen(self, ctx) -> Context:
         return ctx
@@ -53,8 +57,8 @@ class Node:
 
 
 class NegNode(Node):
-    def __init__(self, value):
-        self.value = value #the value, node
+    def __init__(self, value, span):
+        super().__init__(value, span)
         self.llvm_type = value.llvm_type
 
 
@@ -81,8 +85,8 @@ class NegNode(Node):
         return f"Neg({self.value})"
 
 class NotNode(Node):
-    def __init__(self, value):
-        self.value = value
+    def __init__(self, value, span):
+        super().__init__(value, span)
         self.llvm_type = value.llvm_type
 
     def __repr__(self):
@@ -96,8 +100,8 @@ class NotNode(Node):
         return ctx
 
 class ConstantNode(Node):
-    def __init__(self, value: int | float , _type = None):
-        self.value = value #the constant number
+    def __init__(self, value: int | float, span: Span,  _type = None):
+        super().__init__(value, span) # value : the constant number
         self.llvm_type = _type #the IR type, a type instance
 
     def __repr__(self):
@@ -110,8 +114,8 @@ class ConstantNode(Node):
         return ctx
 
 class BitNode(Node):
-    def __init__(self, value: bool):
-        self.value = value
+    def __init__(self, value: bool, span: Span):
+        super().__init__(value, span)
         self.llvm_type = "bool"
 
     def __repr__(self):
@@ -123,8 +127,8 @@ class BitNode(Node):
         return ctx
 
 class StringNode(Node):
-    def __init__(self, value):
-        self.value = value
+    def __init__(self, value: str, span: Span):
+        super().__init__(value, span)
         self.llvm_type = "string"
 
     def __repr__(self):
@@ -149,8 +153,8 @@ class StringNode(Node):
         return ctx
 
 class BinOpNode(Node):
-    def __init__(self, value, lhs, rhs):
-        self.value = value #the sign
+    def __init__(self, value: Token, lhs: Node, rhs: Node, span: Span):
+        super().__init__(value, span)
         self.lhs = lhs #left hand side, node instance
         self.rhs = rhs #right hand side, node instance
         self.llvm_type = "" #the type, auto assign by symanticizer
@@ -212,8 +216,8 @@ class BinOpNode(Node):
 
 #this ia same as BinOpNode
 class CompareNode(Node):
-    def __init__(self, value, lhs, rhs):
-        self.value = value
+    def __init__(self, value: Token, lhs: Node, rhs: Node, span: Span):
+        super().__init__(value, span)
         self.lhs = lhs
         self.rhs = rhs
         self.llvm_type = ""
@@ -246,15 +250,8 @@ class CompareNode(Node):
             elif self.value == T_GTE:
                 ctx.suc_value = ctx.builder.icmp_signed('>=', ls, rs)
 
-            # and & or operations, a little weired
-            elif self.value.value == "and":
-                ctx.suc_value = ctx.builder.and_(ls, rs)
-
-            elif self.value.value == "or":
-                ctx.suc_value = ctx.builder.or_(ls, rs)
-
             else:
-                raise CodegenError("not a valid operation")
+                raise CodegenError(f"not a valid operation {self.value}")
 
             return ctx
 
@@ -277,24 +274,42 @@ class CompareNode(Node):
         elif self.value == T_GTE:
             ctx.suc_value = ctx.builder.fcmp_ordered('>=', ls, rs)
 
-        # and & or operations, a little weired
-        elif self.value.value == "and":
+        else:
+            raise CodegenError(f"not a valid operation {self.value}")
+
+        return ctx
+
+class BitOpNode(Node):
+    def __init__(self, value: str, lhs: Node, rhs: Node, span: Span):
+        super().__init__(value, span)
+        self.lhs = lhs
+        self.rhs = rhs
+        self.llvm_type = ""
+
+    def __repr__(self):
+        return f"BitOpNode({self.lhs} {self.value} {self.rhs})"
+
+    def codegen(self, ctx) -> Context:
+
+        ls = self.lhs.codegen(ctx).suc_value
+        rs = self.rhs.codegen(ctx).suc_value
+
+        if self.value == "and":
             ctx.suc_value = ctx.builder.and_(ls, rs)
 
-        elif self.value.value == "or":
+        elif self.value == "or":
             ctx.suc_value = ctx.builder.or_(ls, rs)
 
         else:
-            raise CodegenError("not a valid operation")
+            raise CodegenError(f"not a valid operation {self.value}")
 
         return ctx
 
 class CastFloToInt(Node):
-    def __init__(self, value, casting_type):
-        self.value = value # a node subclass
+    def __init__(self, value: Node, casting_type, span: Span):
+        super().__init__(value, span)
         self.llvm_type = getCurrectType(casting_type)
         self.type = casting_type #the llvm int type, for fexibility
-
 
     def codegen(self, ctx) -> Context:
         ctx.suc_value = ctx.builder.fptosi(
@@ -304,14 +319,13 @@ class CastFloToInt(Node):
 
         return ctx
 
-
     def __repr__(self):
         return f"CastFloToInt({self.value})"
 
 
 class CastIntToFlo(Node):
-    def __init__(self, value, casting_type):
-        self.value = value # a node subclass
+    def __init__(self, value: Node, casting_typ,  span: Span):
+        super().__init__(value, span)
         self.llvm_type = getCurrectType(casting_type)
         self.type = casting_type
 
@@ -328,11 +342,10 @@ class CastIntToFlo(Node):
 
 
 class CastIntLow(Node):
-    def __init__(self, value, casting_type):
-        self.value = value
+    def __init__(self, value: Node, casting_type, span: Span):
+        super().__init__(value, span)
         self.llvm_type = getCurrectType(casting_type)
-        self.type = casting_type #the actual llvm type,
-        #so we do not have to create more classes
+        self.type = casting_type # the actual llvm type
 
     def codegen(self, ctx) -> Context:
         ctx.suc_value = ctx.builder.trunc(
@@ -347,8 +360,8 @@ class CastIntLow(Node):
 
 
 class CastIntHigh(Node):
-    def __init__(self, value, casting_type):
-        self.value = value
+    def __init__(self, value: Node, casting_type, span: Span):
+        super().__init__(value, span)
         self.llvm_type = getCurrectType(casting_type)
         self.type = casting_type
 
@@ -364,8 +377,8 @@ class CastIntHigh(Node):
         return f"CastIntHigh({self.value} to {self.type})"
 
 class CastFloLow(Node):
-    def __init__(self, value, casting_type):
-        self.value = value
+    def __init__(self, value: Node, casting_type, span: Span):
+        super().__init__(value, span)
         self.llvm_type = getCurrectType(casting_type)
         self.type = casting_type
 
@@ -381,8 +394,8 @@ class CastFloLow(Node):
         return f"CastFloLow({self.value} to {self.type})"
 
 class CastFloHigh(Node):
-    def __init__(self, value, casting_type):
-        self.value = value
+    def __init__(self, value: Node, casting_type, span: Span):
+        super().__init__(value, span)
         self.llvm_type = getCurrectType(casting_type)
         self.type = casting_type
 
@@ -399,14 +412,13 @@ class CastFloHigh(Node):
 
 
 class VarAssignNode(Node):
-    def __init__(self, value, expr):
-        self.value = value #the symbol instance
+    def __init__(self, value: Symbol, expr: Node, span: Span):
+        super().__init__(value, span)
         self.expr = expr #the expression to be loaded
         self.llvm_type = ""
 
     def __repr__(self):
         return f"VarAssign({self.value}:{self.llvm_type} = {self.expr})"
-
 
     def codegen(self, ctx) -> Context :
 
@@ -420,11 +432,10 @@ class VarAssignNode(Node):
 
 
 class VarDeclareNode(Node):
-    def __init__(self, value,  type_ = 0, var_expr = 0):
-        self.value = value #the symbol instance
+    def __init__(self, value: Symbol, span: Span, type_ = 0, var_expr = 0):
+        super().__init__(value, span)
         self.expr = var_expr #the expression
         self.llvm_type = type_ #the type, temporary
-
 
     def codegen(self, ctx) -> Context:
 
@@ -442,21 +453,16 @@ class VarDeclareNode(Node):
 
         return ctx
 
-
     def __repr__(self):
         return f"let {self.value}:{self.llvm_type} = {self.expr}"
 
-
-
 class VarFetchNode(Node):
-    def __init__(self, value):
-        self.value = value #the symbol instance
+    def __init__(self, value: Symbol, span: Span):
+        super().__init__(value, span)
         self.llvm_type = "" #the type, temporary
-
 
     def __repr__(self):
         return f"VarFetch({self.value}:{self.llvm_type})"
-
 
     def codegen(self, ctx) -> Context:
         ctx.suc_value = ctx.builder.load(
@@ -467,8 +473,9 @@ class VarFetchNode(Node):
         return ctx
 
 class CallNode(Node):
-    def __init__(self, value, params):
-        self.value = value # the name, later the ptr
+    def __init__(self, value, params: list[Node], span: Span):
+        # value: the name, later the ptr
+        super().__init__(value, span)
         self.params = params # the paramiters
         self.llvm_type = "" # the return type, str
 
@@ -558,10 +565,11 @@ class DefaultBlock:
 
 
 class IfElseBlock(DefaultBlock):
-    def __init__(self, cond, body, else_block : DefaultBlock):
+    def __init__(self, cond: Node, body: list[Node | DefaultBlock], else_block : DefaultBlock, span: Span):
         self.cond = cond # a node instance
         self.body = body # a list of nodes
         self.else_block = else_block # the else block
+        self.span = span # the span
 
     def __repr__(self):
         return ("if " + repr(self.cond) +
@@ -615,8 +623,9 @@ class IfElseBlock(DefaultBlock):
 #end
 
 class ElseBlock(DefaultBlock):
-    def __init__(self, body: list[Node | DefaultBlock]):
+    def __init__(self, body: list[Node | DefaultBlock], span: Span):
         self.body = body
+        self.span = span
 
     def codegen(self, ctx) -> Context:
 
@@ -645,10 +654,11 @@ class ElseBlock(DefaultBlock):
         return super().__repr__()
 
 class WhileBlock(DefaultBlock):
-    def __init__(self, cond, body, else_block):
+    def __init__(self, cond, body, else_block, span):
         self.cond = cond
         self.body = body
         self.else_block = else_block
+        self.span = span
 
     def __repr__(self):
         return ("while " + repr(self.cond) + " {"+

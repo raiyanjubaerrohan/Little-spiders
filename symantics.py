@@ -4,6 +4,7 @@ from nodes import (
     VarDeclareNode,
     VarFetchNode,
     BinOpNode,
+    BitOpNode,
     CompareNode,
     ConstantNode,
     BitNode,
@@ -143,9 +144,10 @@ class Symanticizer:
 
         return VarAssignNode(node.value, comp_res), None
 
-    def simanticize_binOpNode(self):
+    def simanticize_opNode(self):
 
         tree = self.cur_node
+        optype = type(tree) # I am using some python hacks
 
         ### lhs
         self.cur_node = tree.lhs
@@ -168,10 +170,10 @@ class Symanticizer:
         if err: return None, err
         #this will set self.exp_type automatically
 
-        binOp = BinOpNode(tree.value, ty_lhs, ty_rhs)
-        binOp.llvm_type = self.exp_type
+        opNode = optype(tree.value, ty_lhs, ty_rhs)
+        opNode.llvm_type = self.exp_type
 
-        return binOp, None
+        return opNode, None
 
 
     def simanticize_compareNode(self):
@@ -218,7 +220,7 @@ class Symanticizer:
         elif isinstance(self.cur_node, VarAssignNode):
             ret_value = self.simanticize_varAssNode()
 
-        elif isinstance(self.cur_node, BinOpNode):
+        elif isinstance(self.cur_node, (BinOpNode, BitOpNode)):
             ret_value = self.simanticize_binOpNode()
 
         elif isinstance(self.cur_node, CompareNode):

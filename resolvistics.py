@@ -2,6 +2,7 @@ from nodes import (
     NegNode,
     NotNode,
     BinOpNode,
+    BitOpNode,
     CompareNode,
     CastFloToInt,
     CastIntToFlo,
@@ -68,7 +69,7 @@ class Resolver:
             else:
                 res = Exception(f"@resolver, there is no such function as {tree.value}")
 
-        elif isinstance(tree, (BinOpNode, CompareNode)):
+        elif isinstance(tree, (BinOpNode, BitOpNode, CompareNode)):
 
             # for lhs
             self.cur_node = tree.lhs

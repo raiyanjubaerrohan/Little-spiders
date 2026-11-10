@@ -86,10 +86,6 @@ if diagctx.has_error():
     diagctx.render()
     sys.exit(1)
 
-print(tokens)
-sys.exit(0)
-
-tokens.append(Token(T_EOF))
 if eof := parser.load(tokens):
     print("the given file is empty")
     sys.exit(0)
@@ -100,6 +96,12 @@ while running:
     # parse
     raw_ast = parser.parse()
     if raw_ast == "theend": running = False
+    print(raw_ast)
+    raw_ast = parser.parse()
+    print(raw_ast)
+    
+    if diagctx.has_error(): diagctx.render()
+    sys.exit(0)
 
     # resolve
     resolver.load(raw_ast, ctx)
