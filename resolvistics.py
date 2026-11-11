@@ -1,6 +1,9 @@
 from nodes import (
     NegNode,
     NotNode,
+    StringNode,
+    BitNode,
+    ConstantNode,
     BinOpNode,
     BitOpNode,
     CompareNode,
@@ -14,12 +17,14 @@ from nodes import (
     VarDeclareNode,
     VarFetchNode,
     CallNode,
+    BreakNode,
+    ContinueNode,
     IfElseBlock,
     ElseBlock,
     WhileBlock,
 )
 
-from utils import Symbol
+from utils import Symbol, T_POISON
 from diagnostical import Diagnostics
 
 class Resolver:
@@ -34,52 +39,71 @@ class Resolver:
         self.cur_node = ast
         self.ctx = ctx
 
-        # removing all the items except first one
-        fir = self.variables_ptr[0]
-        self.variables_ptr = []
-
-        self.variables_ptr.append(fir)
-        # we did not remove the first one
-        # because it will later ruin the global scope
-
-    def resolve(self) -> Exception | None:
+    def resolve(self) -> Node | str:
         tree = self.cur_node
-        res = None
+
+        if tree == T_POISON: return T_POISON
+
+        if isinstance(tree, (
+            BreakNode,
+            ContinueNode,
+            StringNode,
+            ConstantNode,
+            BitNode
+        )):
+            return tree
 
         if isinstance(tree, (NegNode, NotNode)):
             self.cur_node = tree.value
-
             res = self.resolve()
+            if res == T_POISON: return T_POISON
 
-        elif isinstance(tree, CallNode):
+            return type(tree)(res, tree.span) # a python hack
+
+        if isinstance(tree, CallNode):
+
             # first resolve the params
+            params = []
             for self.cur_node in tree.params:
-                if err := self.resolve(): return err
+                expr = self.resolve()
+                if expr == T_POISON: return T_POISON
+                params.append(expr)
 
             # now the value and return type
             if tree.value in self.ctx.function_ptr:
 
-                tree.llvm_type = (self.ctx.
-                    function_ptr[tree.value]["type"])
+                call_node = CallNode(
+                    self.ctx.function_ptr[tree.value]["value"],
+                    params,
+                    tree.span
+                )
+                call_node.llvm_type = self.ctx.function_ptr[tree.value]["type"]
 
-                tree.value = (self.ctx.
-                    function_ptr[tree.value]["value"])
+                return call_node
+                
+            self.diagctx.emit(Diagnostics(
+                f"there is no such function as {tree.value}",
+                "R0492",
+                tree.span
+                # help "did you mean...?"
+            ))
+            return T_POISON
 
-                res = None
-            else:
-                res = Exception(f"@resolver, there is no such function as {tree.value}")
+        if isinstance(tree, (BinOpNode, BitOpNode, CompareNode)):
 
-        elif isinstance(tree, (BinOpNode, BitOpNode, CompareNode)):
-
-            # for lhs
+            # lhs
             self.cur_node = tree.lhs
-            if err := self.resolve(): return err
+            res_lhs = self.resolve()
+            if res_lhs == T_POISON: return T_POISON
 
-            # for rhs
+            # rhs
             self.cur_node = tree.rhs
-            if err := self.resolve(): return err
+            res_rhs = self.resolve()
+            if res_rhs == T_POISON: return T_POISON
 
-        elif isinstance(tree, (
+            return type(tree)(tree.value, res_lhs, res_rhs, tree.span)
+
+        if isinstance(tree, (
             CastIntToFlo,
             CastFloToInt,
             CastIntLow,
@@ -88,80 +112,89 @@ class Resolver:
             CastFloHigh
         )):
             self.cur_node = tree.value
-
             res = self.resolve()
+            if res == T_POISON: return T_POISON
 
-        elif isinstance(self.cur_node, VarAssignNode):
+            return type(tree)(res, tree.span)
+
+        if isinstance(self.cur_node, VarAssignNode):
 
             self.cur_node = tree.expr
-            if err := self.resolve(): return err
+            temp_expr = self.resolve()
+            if temp_expr == T_POISON: return T_POISON
 
             for sp in reversed(range(self.scope+1)):
                 dict_of_scope = self.variables_ptr[sp]
 
                 # for now tree.value is the name
                 if tree.value in dict_of_scope:
-
-                    tree.value = dict_of_scope[tree.value]
-                    #now it a symbol instant
-
-                    return None
+                    return VarAssignNode(
+                        dict_of_scope[tree.value],
+                        temp_expr,
+                        tree.span
+                    )
 
             # the loop only comes here if it
-            # do not found the name in any lower scope
+            # do not found the name in any lower scope.
             # means, it is an exception
 
-            res =  Exception(
+            self.diagctx.emit(Diagnostics(
                 f"the variable {tree.value} is not declared "
-                "or not valid on this scope"
-            )
+                "or not valid on this scope",
+                "R0478",
+                tree.span
+            ))
+            return T_POISON
 
-        elif isinstance(tree, VarDeclareNode):
-
-            tree.scope = self.scope
+        if isinstance(tree, VarDeclareNode):
 
             self.cur_node = tree.expr
-            if err := self.resolve(): return err
+            temp_expr = self.resolve() if self.cur_node else 0
+            if temp_expr == T_POISON: return T_POISON
 
             # linking entry
-            temp = tree.value
-            tree.value = Symbol()
-            tree.value.name = temp
-            tree.value.llvm_type = tree.llvm_type
+            tree.value = Symbol(tree.value, tree.llvm_type)
 
             # the latest scope entry
             self.variables_ptr[-1][tree.value.name] = tree.value
 
-        elif isinstance(tree, VarFetchNode):
+            return VarDeclareNode(
+                tree.value,
+                tree.span,
+                tree.llvm_type,
+                temp_expr
+            )
+
+        if isinstance(tree, VarFetchNode):
 
             for sp in reversed(range(self.scope+1)):
                 dict_of_scope = self.variables_ptr[sp]
 
                 if tree.value in dict_of_scope:
-
-                    tree.value = dict_of_scope[tree.value]
-                    # now tree.value is a symbol instant
-
-                    return None
+                    return VarFetchNode(dict_of_scope[tree.value], tree.span)
 
             # same reason as varAssignNode
-            res = Exception(
+            self.diagctx.emit(Diagnostics(
                 f"the variable {tree.value} is not declared "
-                "or not valid on this scope"
-            )
+                "or not valid on this scope",
+                "R0478",
+                tree.span
+            ))
+            return T_POISON
 
-        elif isinstance(tree, IfElseBlock):
+        if isinstance(tree, (IfElseBlock)):
             # condition
             self.cur_node = tree.cond
-            if err := self.resolve(): return err
+            cond_expr = self.resolve()
 
             # increse the scope
             self.scope += 1
             self.variables_ptr.append({})
 
             # body
+            nodes = []
             for self.cur_node in tree.body:
-                if err := self.resolve(): return err
+                nodes.append(self.resolve())
 
             # desreasing the scope for the else block
             self.scope -= 1
@@ -169,42 +202,24 @@ class Resolver:
 
             # else block
             self.cur_node = tree.else_block
-            if err := self.resolve(): return err
+            else_block = self.resolve()
 
-        elif isinstance(tree, ElseBlock):
+            return type(tree)(cond_expr, nodes, else_block, tree.span)
+
+        if isinstance(tree, ElseBlock):
 
             # increse the scope
             self.scope += 1
             self.variables_ptr.append({})
 
             # body
+            nodes = []
             for self.cur_node in tree.body:
-                if err := self.resolve(): return err
+                nodes.append(self.resolve())
 
             # returing from else block, we should decrease scope
             self.scope -= 1
             self.variables_ptr.pop()
 
-        elif isinstance(tree, WhileBlock):
+            return ElseBlock(nodes, tree.span)
 
-            # condition
-            self.cur_node = tree.cond
-            if err := self.resolve(): return err
-
-            # increse the scope
-            self.scope += 1
-            self.variables_ptr.append({})
-
-            # body
-            for self.cur_node in tree.body:
-                if err := self.resolve(): return err
-
-            # decrease the scope for else block
-            self.scope -= 1
-            self.variables_ptr.pop()
-
-            # else block
-            self.cur_node = tree.else_block
-            if err := self.resolve(): return err
-
-        return res

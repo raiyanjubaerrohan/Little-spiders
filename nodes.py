@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 from utils import (
     T_ADD,
     T_SUB,
@@ -134,17 +136,17 @@ class StringNode(Node):
         return f"Str({self.value})"
 
     def codegen(self, ctx: Context) -> Context:
-        self.value += '\0'
+        str_value = self.value + '\0'
         #ensuring the null terminator
         
         zero = Constant(IntType(32), 0)
 
         str_name = name_generator()
-        str_type = ArrayType(IntType(8), len(self.value))
+        str_type = ArrayType(IntType(8), len(str_value))
         global_str = GlobalVariable(ctx.module, str_type, str_name)
 
         global_str.global_constant = True
-        global_str.initializer = Constant(str_type, bytearray(self.value, "utf-8"))
+        global_str.initializer = Constant(str_type, bytearray(str_value, "utf-8"))
 
         global_str.linkage = 'private'
         ctx.suc_value = ctx.builder.gep(global_str, [zero, zero])
@@ -448,7 +450,7 @@ class VarDeclareNode(Node):
         varAssNode = VarAssignNode(self.value, self.expr, self.expr.span)
 
         ctx = varAssNode.codegen(ctx)
-        ctx.suc_value = self.value.ptr
+        ctx.suc_value = deepcopy(self.value.ptr)
 
         return ctx
 

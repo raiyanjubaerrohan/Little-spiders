@@ -96,26 +96,22 @@ while running:
     # parse
     raw_ast = parser.parse()
     if raw_ast == "theend": running = False
-    print(raw_ast)
-    raw_ast = parser.parse()
-    print(raw_ast)
-    
-    if diagctx.has_error(): diagctx.render()
-    sys.exit(0)
 
     # resolve
     resolver.load(raw_ast, ctx)
     sym_ast = resolver.resolve()
 
+    print(sym_ast, '\n')
+
     # simanticize
-    simanticizer.load(sym_ast)
-    complete_ast = simanticizer.simanticize()
+    #simanticizer.load(sym_ast)
+    #complete_ast = simanticizer.simanticize()
 
-    if diagctx.has_error(): break
+    #if diagctx.has_error(): break
 
-    try: ctx = complete_ast.codegen(ctx)
-    except CodegenError as ce:
-        print(f"codegen error: {ce}")
+    #try: ctx = complete_ast.codegen(ctx)
+    #except CodegenError as ce:
+        #print(f"codegen error: {ce}")
 
 if diagctx.has_error():
     diagctx.render()

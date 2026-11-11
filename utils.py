@@ -151,9 +151,9 @@ class Context:
         return "this is a context, so no repr is impled."
 
 class Symbol:
-    def __init__(self):
-        self.name = None
-        self.llvm_type = None
+    def __init__(self, name, llvm_type):
+        self.name = name
+        self.llvm_type = llvm_type
         self.ptr = None
 
     def __repr__(self):

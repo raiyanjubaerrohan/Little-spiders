@@ -24,7 +24,7 @@ class Span:
 
     def __ne__(self, other) -> bool:
         if isinstance(other, Span):
-            return self.start == other.start and self.end == other.end
+            return self.start != other.start and self.end != other.end
 
         return False
 

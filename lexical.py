@@ -340,8 +340,8 @@ class Lexer:
 
             if self.cur == 'n': return '\n'
             if self.cur == 't': return '\t'
-            if self.cur == '"': return '\''
-            if self.cur == "'": return '\"'
+            if self.cur == '"': return '\"'
+            if self.cur == "'": return '\''
             if self.cur == '\\': return '\\'
 
             span = Span(start_pos, (self.ln+1, self.span_cur+1))
