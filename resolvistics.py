@@ -78,6 +78,7 @@ class Resolver:
                     tree.span
                 )
                 call_node.llvm_type = self.ctx.function_ptr[tree.value]["type"]
+                call_node.name = tree.value
 
                 return call_node
                 

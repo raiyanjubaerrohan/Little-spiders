@@ -763,8 +763,7 @@ class Parser:
                     self.diagctx.emit(err)
                     return T_POISON
 
-                if self.next_tok():
-                    return "theend"
+                _ = self.next_tok()
 
                 return res
 

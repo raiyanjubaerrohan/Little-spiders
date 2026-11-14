@@ -1,5 +1,3 @@
-from copy import deepcopy
-
 from utils import (
     T_ADD,
     T_SUB,
@@ -450,7 +448,7 @@ class VarDeclareNode(Node):
         varAssNode = VarAssignNode(self.value, self.expr, self.expr.span)
 
         ctx = varAssNode.codegen(ctx)
-        ctx.suc_value = deepcopy(self.value.ptr)
+        ctx.suc_value = self.value.ptr
 
         return ctx
 
